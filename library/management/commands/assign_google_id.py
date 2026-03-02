@@ -7,7 +7,7 @@ from bookcollection import settings
 
 class Command(BaseCommand):
     def handle(self, *args, **kwargs):
-        endpoint = api_key
+        endpoint = f"https://www.googleapis.com/books/v1/volumes/"
         
         books = Book.objects.filter(google_id__isnull=True)
         for book in books:
