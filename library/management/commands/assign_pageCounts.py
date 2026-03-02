@@ -1,6 +1,7 @@
 import requests
 from django.core.management.base import BaseCommand
 from library.models import Book
+from bookcollection import settings
 
 class Command(BaseCommand):
     def handle(self, *args, **options):
@@ -16,7 +17,7 @@ class Command(BaseCommand):
             try:
                 endpoint = f"https://www.googleapis.com/books/v1/volumes/{book_id}"
                 query_params = {
-                "key": "AIzaSyAhmttZxkbUEsMvD_vgw3UUqu4g58W4f3o",
+                "key": settings.GOOGLE_API_KEY,
             }
                 response = requests.get(endpoint, params=query_params).json()
                 book_pageCount = response.get('volumeInfo', {}).get('pageCount', 0)

@@ -3,10 +3,11 @@
 import requests
 from django.core.management.base import BaseCommand
 from library.models import Book
+from bookcollection import settings
 
 class Command(BaseCommand):
     def handle(self, *args, **kwargs):
-        endpoint = "https://www.googleapis.com/books/v1/volumes"
+        endpoint = api_key
         
         books = Book.objects.filter(google_id__isnull=True)
         for book in books:
@@ -16,7 +17,7 @@ class Command(BaseCommand):
                 query += f" ISBN:{book.isbn}"
 
             query_params = {
-                "key": "AIzaSyAhmttZxkbUEsMvD_vgw3UUqu4g58W4f3o",
+                "key": settings.GOOGLE_API_KEY,
                 "q": query
             }
             response = requests.get(endpoint, params=query_params).json()
