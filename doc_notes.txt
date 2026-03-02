@@ -1,0 +1,30 @@
+// FORMS
+Add label="" to the field parameters to customise the labels
+request.META.HTTP_REFERER|default:'/' - Back button URL
+
+//DB
+class UserBook(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    book = models.ForeignKey(Book, on_delete=models.CASCADE)
+
+UserBook is the child, while user and book are the parents
+Foreignkey() creates a ManytoOne relatiosnhip i.e a single user can have many UserBooks
+
+
+--ASSIGNING GOOGLE ID WAS DONE UNDER MANAGEMNT/COMMANDS
+
+
+-- To use a view in different templates:
+In views: 
+    if template_name:
+        return render(request, template_name, context)
+In urls:
+    path('user/<str:username>/', lambda request, username: user_profile(
+        request, username, 
+        template_name='library/book_list.html'), 
+        name='user-books-section'),
+NB: Just a sample. Tweak as applicable
+
+NOTES:
+-GET is stateless
+-A GET request isn't related to the previous. It's a separate entity and won't include the previous request

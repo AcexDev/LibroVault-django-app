@@ -1,0 +1,110 @@
+{% extends 'library/base.html' %} 
+{% block content%}
+
+<div class="settings-page">
+  <h1>Settings</h1>
+  
+  <div class="settings-menu">
+    <a href="{% url 'profile' %}" class="menu-item">
+      <span>Profile</span>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
+      </svg>
+    </a>
+
+    <a href="{% url 'user-books' %}" class="menu-item">
+      <span>My Books</span>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
+      </svg>
+    </a>
+
+    <a href="#" class="menu-item">
+      <span>Privacy & Security</span>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
+      </svg>
+    </a>
+
+    <a href="#" class="menu-item">
+      <span>Help & Support</span>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
+      </svg>
+    </a>
+
+    <a href="{% url 'library-about' %}" class="menu-item">
+      <span>About</span>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
+      </svg>
+    </a>
+
+    <form method="POST" action="{% url 'logout' %}" style="margin-top: 40px;">
+      {% csrf_token %}
+      <button type="submit" class="menu-item logout">
+        <span>Log Out</span>
+      </button>
+    </form>
+  </div>
+</div>
+
+<style>
+.settings-page {
+  max-width: 600px;
+  margin: 0 auto;
+  padding: 40px 20px;
+}
+
+.settings-page h1 {
+  font-size: 2rem;
+  margin-bottom: 32px;
+  color: var(--text-primary) !important;
+}
+
+.settings-menu {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.menu-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: 12px;
+  color: var(--text-primary) !important;
+  text-decoration: none;
+  transition: all 0.2s;
+  width: 100%;
+  cursor: pointer;
+  font-size: 15px;
+}
+
+.menu-item:hover {
+  background: var(--bg-elevated);
+  border-color: var(--accent);
+  transform: translateX(4px);
+}
+
+.menu-item svg {
+  width: 20px;
+  height: 20px;
+  opacity: 0.5;
+}
+
+.menu-item.logout {
+  color: var(--danger) !important;
+  border-color: var(--danger);
+}
+
+.menu-item.logout:hover {
+  background: var(--danger);
+  color: white !important;
+}
+</style>
+
+{% endblock content %}

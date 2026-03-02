@@ -1,0 +1,105 @@
+{% extends "library/base.html" %} {% block content %} {% load static %}
+<link rel="stylesheet" type="text/css" href="{% static 'library/query.css' %}" />
+  
+        <!-- Back Button -->
+    <div class="mb-3">
+        <a href="{% url 'user-books' %}" 
+           class="btn btn-secondary" 
+           style="background-color: #16a34a; border: none; padding: 5px 20px;">
+            &larr; Back
+        </a>
+    </div>
+<div class="result-card">
+    {% if book.cover %}
+    <img src="{{ book.cover }}" alt="{{ book.title }}" class="result-cover">
+    {% endif %}
+    
+    <div class="result-content">
+      <div style="display: flex;">
+        <h2><a href="{% url 'book-detail' book.id %}">{{ book.title }}</a></h2>
+        <a href="{{ book.booklink.url }}" target="blank" class="" style="position: absolute; right: 50px;">View Book</a>
+      </div>
+      
+      
+      <div class="book-status">
+        {% if book.status %}
+        <span>Status: {{ book.status }}</span>
+      {% endif %}
+      </div>
+
+      {% if book.subtitle %}
+      <p class="subtitle">{{ book.subtitle }}</p>
+      {% endif %}
+      <p>ISBN: {{ book.isbn }}</p>
+      <div class="result-meta">
+        {% if book.author %}
+        <span class="meta-tag">
+          <strong>Authors:</strong> {{ book.author }}
+        </span>
+        {% endif %}
+        
+        {% if book.year_published %}
+        <span class="meta-tag">
+          <strong>Published:</strong> {{ book.year_published }}
+        </span>
+        {% endif %}
+        
+        {% if book.genre %}
+        <span class="meta-tag">
+          <strong>Categories:</strong> {{ book.genre }}
+        </span>
+        {% endif %}
+         
+      </div>
+      
+      {% if book.description %}
+      <p class="description">{{ book.description }}</p>
+      {% endif %}
+  
+    <!-- Reading Progress Tracker -->
+    <div class="progress-tracker">
+      <div class="progress-header">
+        <span class="progress-label">Reading Progress</span>
+        <span class="progress-stats">
+          {{ pages_read|default:"0" }} / {{ book.page_count|default:"0" }} pages
+          <span class="progress-percentage">
+            ({% widthratio pages_read|default:0 book.page_count|default:1 100 %}%)
+          </span>
+        </span>
+      </div>
+      
+      <div class="progress-bar-container">
+        <div class="progress-bar-fill" 
+             style="width: {% widthratio pages_read|default:0 book.page_count|default:1 100 %}%">
+        </div>
+      </div>
+      <div>
+      <form method="POST" action="{% url 'book-page-update' book.id%}" class="progress-form">
+        {% csrf_token %}
+        <div class="progress-input-group">
+        <input class="progress-input"
+        type="number" 
+          placeholder="Pages read" 
+          min="0"
+          max="{{book.page_count}}"
+          value="{{pages_read|default:'0'}}"
+          name="updated_page_count">
+        <button class="progress-btn" type="submit">Update</button>
+        </div>
+      </form>
+
+    </div>
+  </div>
+  <div class="book-update-delete">
+      <a class="btn btn-outline mr-4 mt-1 mb-4"
+        href="{% url 'book-update' book.id %}">Update</a>
+
+      <a class="btn btn-outline-danger mr-4 mt-1 mb-4"
+        href="{% url 'book-delete' book.id %}">Delete</a>
+    </div>
+    </div>
+
+
+
+{% endblock content %}
+

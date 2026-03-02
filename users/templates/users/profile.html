@@ -1,0 +1,60 @@
+{% extends 'library/base.html' %} 
+{% load crispy_forms_tags %}
+{% block content %}
+
+<div class="content-section">
+  <div class="media">
+    <img class="rounded-circle account-img" src="{{ user.profile.image.url }}" 
+         style="width: 120px; height: 120px; object-fit: cover; margin-right: 1.5rem;">
+    <div class="media-body">
+      <h2 class="account-heading">{{ user.username }}</h2>
+      <p class="text-secondary">{{ user.email }}</p>
+      <p class="text-secondary">{{ user.age }}</p>
+      <small class="text-muted d-block mb-1">About</small>
+      <p class="user-bio" style="font-style: italic;"> {{ user.profile.bio }}</p>
+      <!-- EDIT BUTTON -->
+      <!-- <button type="button" class="btn btn-outline-info mt-2" id="toggleEditBtn">
+        Edit Profile
+      </button> -->
+    </div>
+  </div>
+  
+  <!-- EDIT FORM (Hidden by default) -->
+  <div  class="mt-4">
+    <form method="POST" enctype="multipart/form-data">
+      {% csrf_token %}
+      <fieldset class="form-group">
+        <legend class="border-bottom mb-4">Profile Information</legend>
+        {{ u_form|crispy }}
+        {{ p_form|crispy }}
+      </fieldset>
+      <div class="form-group">
+        <button type="submit" class="btn btn-info">Update</button>
+        
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- <script>
+  // Toggle edit form visibility
+  document.getElementById('toggleEditBtn').addEventListener('click', function() {
+    const editSection = document.getElementById('editFormSection');
+    const editBtn = document.getElementById('toggleEditBtn');
+    
+    if (editSection.style.display === 'none') {
+      editSection.style.display = 'block';
+      editBtn.textContent = 'Hide Edit Form';
+    } else {
+      editSection.style.display = 'none';
+      editBtn.textContent = 'Edit Profile';
+    }
+  });
+  
+  // Cancel button hides the form
+  document.getElementById('cancelEditBtn').addEventListener('click', function() {
+    document.getElementById('editFormSection').style.display = 'none';
+    document.getElementById('toggleEditBtn').textContent = 'Edit Profile';
+  });
+</script> -->
+{% endblock content %}

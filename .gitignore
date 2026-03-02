@@ -1,0 +1,10 @@
+weather_api.py
+weather.html
+__pycache__/
+*.py[cod]
+.env
+db.sqlite3
+.vscode/
+.idea/
+media/
+*.log

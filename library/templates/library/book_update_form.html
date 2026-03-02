@@ -1,0 +1,29 @@
+{% extends 'library/base.html' %}
+{% load crispy_forms_tags %}
+
+{% block content %}
+<div class="content-section container mt-4">
+    <!-- Back Button -->
+    <div class="mb-3">
+        <a href="{{ request.META.HTTP_REFERER|default:'/' }}" 
+           class="btn btn-secondary" 
+           style="background-color: #7c3aed; border: none;">
+            &larr; Back
+        </a>
+    </div>
+
+    <!-- Update Form -->
+    <form method="POST">
+        {% csrf_token %}
+        <fieldset class="form-group">
+            <legend class="border-bottom mb-4">
+                Update Book: "{{ book.title }}"
+            </legend>
+            {{ form|crispy }}
+        </fieldset>
+        <div class="form-group mt-3">
+            <button class="btn btn-outline-info" type="submit">Update</button>
+        </div>
+    </form>
+</div>
+{% endblock content %}
