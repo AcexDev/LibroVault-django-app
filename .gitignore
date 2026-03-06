@@ -10,3 +10,4 @@ media/
 *.log
 api_rough.py
 doc_notes.txt
+tests/
