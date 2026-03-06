@@ -242,7 +242,8 @@ def add_book(request):
             "book_google_id": request.POST.get('google_id', None),
             "book_link": request.POST.get('link', None),
             "book_viewability": request.POST.get('viewability'),
-            "page_count": int(request.POST.get("page_count") or 0)  #Convert to int and handle null results
+            "page_count": int(request.POST.get("page_count") or 0),  #Convert to int and handle null results
+            "published_date": request.POST.get("published_year", None)
         }
 
     save_book(request.user, book_data)

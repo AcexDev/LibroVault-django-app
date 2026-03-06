@@ -50,10 +50,10 @@ def query_values(item):
     book_info = item.get('volumeInfo', {})
     book_title = book_info.get('title', 'N/A')
     book_subtitle = book_info.get('subtitle', 'N/A')
-    published_date = book_info.get('publishedDate', 'N/A')
+    published_date = book_info.get('publishedDate', None)
     book_authors = ", ".join(book_info.get('authors', []))
     book_categories = ", ".join(book_info.get('categories', []))
-    book_description = book_info.get('description', 'N/A')
+    book_description = book_info.get('description', None)
     book_thumbnail = book_info.get('imageLinks', {}).get('thumbnail', default_thumbnail)
     book_link = book_info.get('infoLink', '#')
     book_identifier = book_info.get('industryIdentifiers', [])
@@ -61,6 +61,8 @@ def query_values(item):
     access_info = item.get('accessInfo', {})
     viewability = access_info.get('viewability')
     page_count = book_info.get('pageCount', 0)
+
+    published_date = int(published_date.strip()[:4]) if published_date else 0
 
 
     isbn_10=isbn_13=None
@@ -114,7 +116,7 @@ def save_book(user:User, book_data:dict):
                 "title":title,
                 "author": author,
                 'isbn': isbn,
-                "year_published": 0,
+                "published_year": book_data["published_date"],
                 "cover": book_data['book_thumbnail'],
                 # "genre": book_data["book_categories"],
                 "genre": "FIC",
@@ -131,7 +133,7 @@ def save_book(user:User, book_data:dict):
             defaults={
                 'isbn':isbn,
                 'google_id': book_google_id,
-                "year_published": 0,
+                "year_published": book_data["published_date"],
                 "cover": book_data['book_thumbnail'],
                 # "genre": book_data["book_categories"],
                 "genre": "FIC",

@@ -28,7 +28,6 @@ class Book(models.Model):
     google_id = models.CharField(max_length=50, unique=True, null=True, blank=True)
     title = models.CharField(max_length=100)
     author = models.CharField(max_length=100)
-    year_published = models.IntegerField()
     isbn = models.CharField(max_length=20, null=True, blank=True, help_text="ISBN-10 or ISBN-13")
     cover = models.URLField(blank=True)
     genre = models.CharField(max_length=100, choices=GENRE_CHOICES)
@@ -38,6 +37,7 @@ class Book(models.Model):
     created_at = models.DateTimeField(auto_now_add=True, null=True)
     viewability = models.CharField(max_length=20, blank=True, null=True)
     page_count = models.IntegerField(default=0)
+    published_year = models.IntegerField(default=0)
     
     class Meta:
         unique_together = ('title', 'author')

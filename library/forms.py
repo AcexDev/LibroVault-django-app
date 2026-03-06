@@ -6,7 +6,7 @@ class BookCreateForm(forms.ModelForm):
     status = forms.ChoiceField(choices=UserBook.STATUS_CHOICES)
     class Meta:
         model = Book
-        fields = ['title', 'author', 'isbn', 'year_published', 'genre', 'source', 'description', 'status', 'page_count']
+        fields = ['title', 'author', 'isbn', 'genre','published_year', 'source', 'description', 'status', 'page_count']
 
 
 class BookUpdateForm(forms.ModelForm):
