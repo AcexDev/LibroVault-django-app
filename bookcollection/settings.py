@@ -12,6 +12,10 @@ from dotenv import load_dotenv
 load_dotenv(BASE_DIR / '.env')
 GOOGLE_API_KEY = os.getenv('API_KEY')
 
+cloudinary_name = os.environ.get("CLOUDINARY_CLOUD_NAME")
+cloudinary_api_key = os.environ.get("CLOUDINARY_API_KEY")
+cloudinary_secret_key = os.environ.get("CLOUDINARY_API_SECRET")
+
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/6.0/howto/deployment/checklist/
@@ -43,7 +47,17 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'cloudinary',
+    'cloudinary_storage'
 ]
+
+CLOUDINARY_STORAGE = {
+    'CLOUD_NAME': cloudinary_name,
+    'API_KEY': cloudinary_api_key,
+    'API_SECRET': cloudinary_secret_key
+}
+
+DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
