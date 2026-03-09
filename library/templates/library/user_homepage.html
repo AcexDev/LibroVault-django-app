@@ -288,6 +288,7 @@
       {% for book in books|slice:":5" %}
       <a href="{% url 'book-detail' book.id %}">
         <div class="book-item">
+          <!-- Wrap cover in a div so CSS can control height uniformly -->
           <div class="book-cover">
             {% if book.cover %}
               <img src="{{ book.cover }}" alt="{{ book.title }}">
@@ -297,7 +298,6 @@
               </svg>
             {% endif %}
           </div>
-          
           <div class="book-item-title">{{ book.title }}</div>
           <div class="book-item-author">{{ book.author }}</div>
         </div>

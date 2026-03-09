@@ -774,57 +774,114 @@ ul, ol {
 
 /* Responsive Design */
 @media (max-width: 768px) {
-  .nav-container {
-    padding: 0 16px;
+
+  /* Show hamburger in top bar */
+  .top-nav .menu-toggle {
+    display: flex;
   }
 
-  .nav-actions {
-    gap: 8px;
+  /* Hide the inside-sidebar toggle on mobile too 
+     (top bar button handles open, overlay/close btn handles close) */
+  .menu-toggle.inside-nav {
+    display: flex;
   }
 
-  .nav-btn {
-    padding: 8px 12px;
-    font-size: 13px;
-  }
-
-  .nav-btn svg {
-    width: 16px;
-    height: 16px;
-  }
-
+  /* Sidebar: off-screen left by default on mobile */
   .side-nav {
+    transform: translateX(-260px);
+    z-index: 90;
+    box-shadow: none;
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+                box-shadow 0.3s ease;
+  }
+
+  /* Sidebar open state on mobile */
+  .side-nav.open {
+    transform: translateX(0);
+    box-shadow: 4px 0 24px rgba(0, 0, 0, 0.3);
+  }
+
+  /* Override desktop collapsed state — irrelevant on mobile */
+  .side-nav.collapsed {
     transform: translateX(-260px);
   }
 
-  .side-nav.collapsed {
-    transform: translateX(0);
+  /* Overlay shows when sidebar is open */
+  .sidebar-overlay {
+    display: block;
   }
 
+  /* Main content fills full width on mobile — no sidebar offset */
   .main-content {
-    margin-left: 0;
+    margin-left: 0 !important;
+    padding: 16px 12px;
+  }
+
+  /* Prevent expanded class from doing anything weird on mobile */
+  .main-content.expanded {
+    margin-left: 0 !important;
+  }
+
+  /* Top nav */
+  .nav-container {
+    padding: 0 12px;
+    gap: 8px;
+  }
+
+  /* Brand text — hide label on very small screens, keep icon */
+  .brand span {
+    display: none;
+  }
+
+  .brand-icon {
+    width: 26px;
+    height: 26px;
+  }
+
+  /* Nav action buttons — compact */
+  .nav-actions {
+    gap: 6px;
+  }
+
+  .nav-btn {
+    padding: 7px 10px;
+    font-size: 13px;
+  }
+
+  /* Content section (forms) */
+  .content-section {
     padding: 20px 16px;
   }
 
-  .content-section {
-    padding: 24px 20px;
-  }
-
   legend {
-    font-size: 24px;
+    font-size: 22px;
   }
 
+  /* Toast full-width on mobile */
   .toast-container {
-    left: 16px;
-    right: 16px;
+    left: 12px;
+    right: 12px;
     max-width: none;
   }
 
+  /* Media objects stack */
   .media {
     flex-direction: column;
   }
 
   .article-title {
     font-size: 20px;
+  }
+}
+
+/* Extra small */
+@media (max-width: 380px) {
+  .nav-btn.primary {
+    display: none; /* Hide Sign Up button on tiny screens, Login is enough */
+  }
+
+  .main-content {
+    padding: 12px 10px;
   }
 }
 
@@ -850,3 +907,68 @@ select {
   line-height: 1.5;
 }
 
+/* Hamburger button — shared style for both instances */
+.menu-toggle {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: var(--transition);
+  flex-shrink: 0;
+}
+
+.menu-toggle:hover {
+  background: var(--bg-card);
+}
+
+.menu-toggle span {
+  width: 20px;
+  height: 2px;
+  background: var(--text-primary);
+  border-radius: 2px;
+  transition: var(--transition);
+  display: block;
+}
+
+.menu-toggle:hover span {
+  background: var(--accent);
+}
+
+/* The inside-nav toggle (visible only on mobile, inside sidebar header) */
+.menu-toggle.inside-nav {
+  display: none;
+}
+
+/* Sidebar overlay — hidden by default, shown on mobile when sidebar opens */
+.sidebar-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 89;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.sidebar-overlay.active {
+  opacity: 1;
+}
+
+
+.top-nav .menu-toggle {
+  display: none;
+}
+
+
+.nav-container {
+  max-width: 100%;
+  height: 100%;
+  padding: 0 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}

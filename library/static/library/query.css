@@ -328,34 +328,60 @@
 @media (max-width: 768px) {
   .books-results {
     padding: 16px 12px;
-    gap: 14px;
+    gap: 12px;
   }
 
-  /* Compact horizontal card — thumbnail left, info right */
+  /* Search bar stacks cleanly */
+  .search-title {
+    font-size: 26px;
+    margin-bottom: 14px;
+  }
+
+  .search-input-wrapper {
+    flex-wrap: wrap;
+    padding: 10px 12px;
+    gap: 8px;
+  }
+
+  .search-icon {
+    order: -1;
+  }
+
+  .input-bar {
+    width: 100%;
+    order: 1;
+    padding: 10px 0;
+  }
+
+  .search-btn {
+    width: 100%;
+    order: 2;
+    justify-content: center;
+  }
+
+  /* Compact horizontal card — thumbnail left, content right */
   .result-card {
-    flex-direction: row;        /* Keep side-by-side on mobile */
-    padding: 14px;
-    gap: 14px;
+    flex-direction: row;
+    padding: 12px;
+    gap: 12px;
     align-items: flex-start;
   }
 
-  /* Smaller thumbnail — proportional, not dominant */
   .result-cover {
-    width: 72px;
-    height: 108px;
+    width: 68px;
+    height: 102px;
     border-radius: 6px;
     flex-shrink: 0;
     align-self: flex-start;
   }
 
   .result-content {
-    gap: 6px;
-    min-width: 0;               /* Prevents overflow */
+    gap: 5px;
+    min-width: 0;
   }
 
-  /* Title wraps neatly, no centering */
   .result-content h2 {
-    font-size: 1rem;
+    font-size: 0.95rem;
     text-align: left;
     line-height: 1.3;
   }
@@ -368,7 +394,7 @@
   }
 
   .subtitle {
-    font-size: 0.85rem;
+    font-size: 0.82rem;
     text-align: left;
     display: -webkit-box;
     -webkit-line-clamp: 1;
@@ -376,16 +402,15 @@
     overflow: hidden;
   }
 
-  /* ISBN is low-priority on mobile — hide it */
-  .result-content > p:not(.subtitle):not(.description) {
+  /* Hide ISBN on mobile — low priority */
+  .isbn-label {
     display: none;
   }
 
-  /* Meta tags collapse into a tight stack */
   .result-meta {
     flex-direction: column;
-    gap: 4px;
-    margin: 4px 0;
+    gap: 3px;
+    margin: 2px 0;
   }
 
   .meta-tag {
@@ -395,9 +420,8 @@
     text-overflow: ellipsis;
   }
 
-  /* Clamp description tighter */
   .description {
-    font-size: 13px;
+    font-size: 12px;
     line-height: 1.5;
     display: -webkit-box;
     -webkit-line-clamp: 2;
@@ -406,28 +430,38 @@
     margin: 0;
   }
 
-  /* Star button — tuck it into top-right of the content area */
-  .star-btn {
-    position: static;
-    margin-left: auto;
-    padding: 4px;
-    align-self: flex-start;
+  /* Action buttons stack vertically on mobile */
+  .card-actions {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 6px;
   }
 
-  .star-btn svg {
-    width: 18px;
-    height: 18px;
+  .card-actions .btn,
+  .card-actions form,
+  .card-actions form .btn {
+    width: 100%;
+    text-align: center;
+    justify-content: center;
   }
 
-  /* Top row inside result-content: title + star side by side */
-  .result-content h2 {
-    /* handled inline via flex row trick below */
+  /* Pagination */
+  .pagination-container {
+    justify-content: center;
+    gap: 6px;
+    padding: 12px 0;
   }
 
-  /* Filter section tightens up */
+  .btn-outline-info {
+    padding: 8px 14px;
+    font-size: 13px;
+    width: auto;
+  }
+
+  /* Filter section */
   .filter-section h1 {
-    font-size: 24px;
-    margin-bottom: 14px;
+    font-size: 22px;
+    margin-bottom: 12px;
   }
 
   .filter-controls {
@@ -445,22 +479,7 @@
     padding: 10px 14px;
   }
 
-  /* Pagination */
-  .pagination-container {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-    justify-content: center;
-    padding: 16px 12px;
-  }
-
-  .btn-outline-info {
-    padding: 8px 14px;
-    font-size: 13px;
-    width: auto;            /* Override the width: 100% on mobile */
-  }
-
-  /* Add Book button */
+  /* Float add button to bottom on mobile */
   div[style*="position: fixed"] {
     top: auto !important;
     bottom: 20px !important;
@@ -468,21 +487,52 @@
   }
 }
 
-/* Extra small screens */
 @media (max-width: 380px) {
   .result-cover {
-    width: 60px;
-    height: 90px;
+    width: 56px;
+    height: 84px;
   }
 
   .result-content h2 {
-    font-size: 0.9rem;
+    font-size: 0.88rem;
   }
 
   .description {
-    display: none;    /* Hide description entirely on tiny screens */
+    display: none;
   }
 }
+
+
+.card-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 4px;
+}
+
+/* Smaller button variant */
+.btn-sm {
+  padding: 7px 14px;
+  font-size: 13px;
+}
+
+/* ISBN — subtle, small */
+.isbn-label {
+  font-size: 12px;
+  color: var(--text-muted) !important;
+  margin: 0;
+}
+
+/* Pagination container */
+.pagination-container {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 16px 0 8px;
+}
+
 .filter-page {
   max-width: 1200px;
   margin: 0 auto;

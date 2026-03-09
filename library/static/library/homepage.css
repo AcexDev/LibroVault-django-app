@@ -831,41 +831,253 @@
   .dashboard-grid {
     grid-template-columns: 1fr;
   }
+
+  .popular-books-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
 }
 
+/* --- 768px: main mobile breakpoint --- */
 @media (max-width: 768px) {
+
+  /* Welcome header */
   .welcome-section {
     flex-direction: column;
     align-items: flex-start;
+    gap: 16px;
+    margin-bottom: 20px;
   }
 
   .welcome-content h1 {
-    font-size: 28px;
+    font-size: 24px;
+    margin-bottom: 4px;
   }
 
-  .stats-overview {
-    grid-template-columns: repeat(2, 1fr);
+  .welcome-subtitle {
+    font-size: 14px;
   }
 
   .quick-actions {
     width: 100%;
+    gap: 8px;
   }
 
   .quick-action-btn {
     flex: 1;
     justify-content: center;
+    padding: 10px 16px;
+    font-size: 13px;
+  }
+
+  /* Stats — 3 cards in a row on mobile, compact */
+  .stats-overview {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    margin-bottom: 24px;
+  }
+
+  .stat-card {
+    padding: 14px 12px;
+  }
+
+  .stat-card::before {
+    display: none; /* remove decorative glow on mobile */
+  }
+
+  .stat-header {
+    margin-bottom: 8px;
+  }
+
+  .stat-label {
+    font-size: 10px;
+    letter-spacing: 0;
+  }
+
+  .stat-icon {
+    width: 28px;
+    height: 28px;
+  }
+
+  .stat-icon svg {
+    width: 15px;
+    height: 15px;
+  }
+
+  .stat-value {
+    font-size: 22px;
+    margin-bottom: 4px;
+  }
+
+  .stat-trend {
+    font-size: 11px;
+    gap: 4px;
+  }
+
+  .stat-trend svg {
+    display: none; /* too cluttered on small cards */
+  }
+
+  /* Popular books — horizontal scroll row instead of grid */
+  .popular-books {
+    padding: 16px;
+    margin-bottom: 24px;
+  }
+
+  .popular-books-grid {
+    display: flex;
+    flex-direction: row;
+    overflow-x: auto;
+    gap: 12px;
+    padding-bottom: 8px;          /* space for scrollbar */
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;        /* hide scrollbar Firefox */
+  }
+
+  .popular-books-grid::-webkit-scrollbar {
+    display: none;                /* hide scrollbar Chrome/Safari */
+  }
+
+  .popular-book-card {
+    flex: 0 0 130px;              /* fixed width, doesn't shrink */
+    min-width: 130px;
+  }
+
+  .popular-book-cover {
+    height: 160px;
+  }
+
+  .popular-book-info {
+    padding: 10px;
+    gap: 4px;
+  }
+
+  .popular-book-title {
+    font-size: 12px;
+    -webkit-line-clamp: 2;
+  }
+
+  .popular-book-author {
+    font-size: 11px;
+  }
+
+  .popular-badge {
+    font-size: 9px;
+    padding: 4px 8px;
+    gap: 3px;
+    top: 8px;
+    right: 8px;
+  }
+
+  /* Recent books — horizontal scroll row (same treatment) */
+  .recent-books {
+    padding: 16px;
+    margin-bottom: 24px;
   }
 
   .books-list {
-    grid-template-columns: 1fr;
+    display: flex;
+    flex-direction: row;
+    overflow-x: auto;
+    gap: 12px;
+    padding-bottom: 8px;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
   }
 
+  .books-list::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Each book item in the scroll row */
+  .books-list > a {
+    flex: 0 0 130px;
+    min-width: 130px;
+    display: block;
+    text-decoration: none;
+  }
+
+  .book-item {
+    width: 100%;
+  }
+
+  .book-cover {
+    width: 100%;
+    height: 150px;
+    border-radius: 8px;
+    overflow: hidden;
+    background: var(--bg-secondary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 10px;
+  }
+
+  .book-cover img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .book-cover svg {
+    width: 28px;
+    height: 28px;
+    stroke: var(--text-muted);
+  }
+
+  .book-item-title {
+    font-size: 12px;
+  }
+
+  .book-item-author {
+    font-size: 11px;
+  }
+
+  /* Activity + features sections */
+  .activity-section,
+  .features-section {
+    padding: 16px;
+  }
+
+  .activity-item {
+    gap: 12px;
+    padding: 12px;
+  }
+
+  .activity-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+  }
+
+  .activity-icon svg {
+    width: 16px;
+    height: 16px;
+  }
+
+  .activity-title {
+    font-size: 13px;
+  }
+
+  .activity-description {
+    font-size: 12px;
+  }
+
+  .features-list {
+    gap: 10px;
+  }
+
+  .feature-card {
+    padding: 14px;
+  }
+
+  /* Landing page */
   .hero-title {
-    font-size: 42px;
+    font-size: 36px;
   }
 
   .hero-subtitle {
-    font-size: 18px;
+    font-size: 16px;
+    margin-bottom: 32px;
   }
 
   .hero-cta {
@@ -875,12 +1087,14 @@
 
   .cta-btn {
     justify-content: center;
+    padding: 14px 24px;
   }
 
   .stats-preview {
     grid-template-columns: repeat(2, 1fr);
-    gap: 24px;
-    padding: 24px;
+    gap: 20px;
+    padding: 20px;
+    margin: 40px auto;
   }
 
   .features-grid {
@@ -892,17 +1106,40 @@
   }
 
   .final-cta {
-    padding: 60px 24px;
+    padding: 48px 20px;
   }
 
   .final-cta h2 {
-    font-size: 32px;
+    font-size: 28px;
+  }
+
+  .final-cta p {
+    font-size: 16px;
+  }
+
+  /* Section headers */
+  .section-title {
+    font-size: 15px;
+  }
+
+  .view-all {
+    font-size: 12px;
   }
 }
 
+/* --- 480px: extra small --- */
 @media (max-width: 480px) {
+  /* Stack stats 1 per row if 3 is too cramped */
   .stats-overview {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(3, 1fr); /* keep 3-col, just smaller */
+  }
+
+  .stat-value {
+    font-size: 20px;
+  }
+
+  .welcome-content h1 {
+    font-size: 21px;
   }
 
   .stats-preview {
