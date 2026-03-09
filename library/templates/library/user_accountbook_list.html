@@ -57,6 +57,7 @@
     <img src="{{ book.cover }}" alt="{{ book.title }}" class="result-cover">
     {% endif %}
     <div class="result-content">
+      <div style="display: flex; align-items: flex-start; gap: 8px;">
       <h2><a href="{% url 'book-detail' book.id %}">{{ book.title }}</a></h2>
       <!-- Star/Favorite Button -->
         <form method="POST" action="{% url 'favourite-toggle' book.id %}" style="margin: 0;">
@@ -73,6 +74,7 @@
             {% endif %}
           </button>
         </form>
+        </div>
       {% if book.subtitle %}
       <p class="subtitle">{{ book.subtitle }}</p>
       {% endif %}

@@ -327,69 +327,162 @@
 
 @media (max-width: 768px) {
   .books-results {
-    padding: 20px 16px;
+    padding: 16px 12px;
+    gap: 14px;
   }
 
-  .search-title {
-    font-size: 32px;
-    margin-bottom: 20px;
-  }
-
-  .search-input-wrapper {
-    flex-wrap: wrap;
-    padding: 12px;
-  }
-
-  .search-icon {
-    order: -1;
-  }
-
-  .input-bar {
-    width: 100%;
-    order: 1;
-  }
-
-  .search-btn {
-    width: 100%;
-    order: 2;
-  }
-
+  /* Compact horizontal card — thumbnail left, info right */
   .result-card {
-    flex-direction: column;
-    padding: 20px;
+    flex-direction: row;        /* Keep side-by-side on mobile */
+    padding: 14px;
+    gap: 14px;
+    align-items: flex-start;
   }
-  
+
+  /* Smaller thumbnail — proportional, not dominant */
   .result-cover {
-    width: 140px;
-    height: 210px;
-    align-self: center;
+    width: 72px;
+    height: 108px;
+    border-radius: 6px;
+    flex-shrink: 0;
+    align-self: flex-start;
   }
-  
+
+  .result-content {
+    gap: 6px;
+    min-width: 0;               /* Prevents overflow */
+  }
+
+  /* Title wraps neatly, no centering */
   .result-content h2 {
-    font-size: 1.4rem;
-    text-align: center;
+    font-size: 1rem;
+    text-align: left;
+    line-height: 1.3;
   }
-  
+
+  .result-content h2 a {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
   .subtitle {
-    text-align: center;
+    font-size: 0.85rem;
+    text-align: left;
+    display: -webkit-box;
+    -webkit-line-clamp: 1;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
   }
-  
+
+  /* ISBN is low-priority on mobile — hide it */
+  .result-content > p:not(.subtitle):not(.description) {
+    display: none;
+  }
+
+  /* Meta tags collapse into a tight stack */
   .result-meta {
     flex-direction: column;
-    gap: 10px;
+    gap: 4px;
+    margin: 4px 0;
+  }
+
+  .meta-tag {
+    font-size: 12px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* Clamp description tighter */
+  .description {
+    font-size: 13px;
+    line-height: 1.5;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    margin: 0;
+  }
+
+  /* Star button — tuck it into top-right of the content area */
+  .star-btn {
+    position: static;
+    margin-left: auto;
+    padding: 4px;
+    align-self: flex-start;
+  }
+
+  .star-btn svg {
+    width: 18px;
+    height: 18px;
+  }
+
+  /* Top row inside result-content: title + star side by side */
+  .result-content h2 {
+    /* handled inline via flex row trick below */
+  }
+
+  /* Filter section tightens up */
+  .filter-section h1 {
+    font-size: 24px;
+    margin-bottom: 14px;
+  }
+
+  .filter-controls {
+    gap: 8px;
+  }
+
+  .filter-section select {
+    max-width: 100%;
+    padding: 10px 14px;
+    font-size: 14px;
+  }
+
+  .fave-toggle {
+    font-size: 13px;
+    padding: 10px 14px;
+  }
+
+  /* Pagination */
+  .pagination-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    justify-content: center;
+    padding: 16px 12px;
   }
 
   .btn-outline-info {
-    width: 100%;
+    padding: 8px 14px;
+    font-size: 13px;
+    width: auto;            /* Override the width: 100% on mobile */
+  }
+
+  /* Add Book button */
+  div[style*="position: fixed"] {
+    top: auto !important;
+    bottom: 20px !important;
+    right: 16px !important;
   }
 }
 
-@media (max-width: 480px) {
-  .search-title {
-    font-size: 28px;
+/* Extra small screens */
+@media (max-width: 380px) {
+  .result-cover {
+    width: 60px;
+    height: 90px;
+  }
+
+  .result-content h2 {
+    font-size: 0.9rem;
+  }
+
+  .description {
+    display: none;    /* Hide description entirely on tiny screens */
   }
 }
-
 .filter-page {
   max-width: 1200px;
   margin: 0 auto;
