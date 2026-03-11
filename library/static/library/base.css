@@ -61,14 +61,20 @@
 /* ── Reset ────────────────────────────────────────────────── */
 *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
 
-html, body {
-  height: 100%;
+html {
+  overflow-x: hidden;
+}
+
+body {
+  min-height: 100vh;
   background: var(--bg-primary) !important;
   color: var(--text-primary) !important;
   font-family: 'Work Sans', -apple-system, BlinkMacSystemFont, sans-serif;
   font-size: 15px;
   line-height: 1.6;
   overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 /* Subtle paper-line texture */
@@ -288,7 +294,8 @@ body::before {
   min-height: calc(100vh - 64px);
   transition: margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   position: relative;
-  z-index: 1;
+  z-index: 2;              /* above body::before (z-index:0) */
+  overflow: visible;
 }
 
 .main-content.expanded { margin-left: 0; }
@@ -296,16 +303,20 @@ body::before {
 
 /* ── Sidebar Overlay ──────────────────────────────────────── */
 .sidebar-overlay {
-  display: none;
+  display: block;              /* always in layout */
   position: fixed;
   inset: 0;
   background: rgba(20, 83, 45, 0.45);
   z-index: 89;
   opacity: 0;
+  pointer-events: none;        /* invisible AND unclickable by default */
   transition: opacity 0.3s ease;
 }
 
-.sidebar-overlay.active { opacity: 1; }
+.sidebar-overlay.active {
+  opacity: 1;
+  pointer-events: auto;        /* only intercept clicks when sidebar is open */
+}
 
 /* ── Typography ───────────────────────────────────────────── */
 h1, h2, h3, h4, h5, h6 {
@@ -588,9 +599,17 @@ ul.errorlist li {
   .side-nav { transform: translateX(-260px); transition: transform 0.3s cubic-bezier(0.4,0,0.2,1), box-shadow 0.3s ease; }
   .side-nav.open { transform: translateX(0); box-shadow: 4px 0 28px rgba(20,83,45,0.2); }
   .side-nav.collapsed { transform: translateX(-260px); }
-  .sidebar-overlay { display: block; }
+  /* sidebar-overlay is always display:block, controlled via pointer-events */
 
-  .main-content { margin-left: 0 !important; padding: 18px 14px; }
+  /* Body scroll lock only when sidebar is open — JS adds/removes */
+  body.sidebar-open { overflow: hidden; }
+
+  .main-content {
+    margin-left: 0 !important;
+    padding: 18px 14px;
+    min-height: auto;   /* let content define height on mobile */
+  }
+
   .main-content.expanded { margin-left: 0 !important; }
 
   .nav-container { padding: 0 14px; gap: 8px; }
