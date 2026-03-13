@@ -139,7 +139,6 @@
 .result-card:hover {
   border-color: var(--accent);
   box-shadow: var(--shadow-md);
-  transform: translateY(-2px);
 }
 
 .result-cover {
@@ -272,12 +271,71 @@
 
 /* ── Empty State ──────────────────────────────────────────── */
 .no-results {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  padding: 72px 20px;
   text-align: center;
-  padding: 64px 20px;
-  color: var(--text-muted) !important;
+}
+
+.empty-icon {
+  width: 72px;
+  height: 72px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-subtle);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 4px;
+}
+
+.empty-icon svg {
+  width: 36px;
+  height: 36px;
+  stroke: var(--text-muted);
+}
+
+.no-results h3 {
+  font-family: 'IBM Plex Serif', serif;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-primary) !important;
+  margin: 0;
+}
+
+.no-results p {
   font-family: 'IBM Plex Serif', serif;
   font-style: italic;
-  font-size: 16px;
+  font-size: 14px;
+  color: var(--text-muted) !important;
+  margin: 0;
+}
+
+/* ── Explore Pagination ───────────────────────────────────── */
+.explore-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 28px 0 8px;
+  flex-wrap: wrap;
+}
+
+.explore-pagination .btn-outline-info {
+  padding: 9px 18px;
+  font-family: 'DM Mono', monospace;
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  min-width: 44px;
+  text-align: center;
+}
+
+.explore-pagination .btn-outline-info:hover {
+  background: var(--accent-hover);
+  box-shadow: none;
 }
 
 /* ── Pagination ───────────────────────────────────────────── */

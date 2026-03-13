@@ -27,6 +27,7 @@ urlpatterns = [
          name='password_reset_complete'),
     path('account/', user_views.account, name='account-info'),
     path('about/', user_views.about, name='library-about'),
+    path('coming/', user_views.coming_feature, name='coming-soon')
 ]
 
 if settings.DEBUG:

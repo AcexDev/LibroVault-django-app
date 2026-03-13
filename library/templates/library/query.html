@@ -109,22 +109,27 @@
   </div>
 
   {% empty %}
+ <!-- Empty state -->
   <div class="no-results">
     <div class="empty-icon">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+          d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
       </svg>
     </div>
     <h3>No books found</h3>
     <p>Try searching with different keywords</p>
   </div>
+
   {% endfor %}
-  <div>
+
+  <!-- Pagination -->
+  <div class="explore-pagination">
     {% if start_index > 0 %}
-      <a href="?q={{ query }}&startIndex={{ original_page }}" class="btn btn-outline-info">First Page</a>
+      <a href="?q={{ query }}&startIndex={{ original_page }}" class="btn btn-outline-info">First</a>
     {% endif %}
-    <a href="?q={{ query }}&startIndex={{ prev_index }}" class="btn btn-outline-info">&#60;</a>
-    <a href="?q={{ query }}&startIndex={{ next_index }}" class="btn btn-outline-info">&#62;</a>
+    <a href="?q={{ query }}&startIndex={{ prev_index }}" class="btn btn-outline-info" title="Previous Page">&#8249;</a>
+    <a href="?q={{ query }}&startIndex={{ next_index }}" class="btn btn-outline-info" title="Next Page">&#8250;</a>
   </div>
 </div>
 {% endblock content %}

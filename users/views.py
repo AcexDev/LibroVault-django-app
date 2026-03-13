@@ -65,3 +65,6 @@ def account(request):
 def about(request):
     return render(request, 'library/about.html')
 
+def coming_feature(request):
+    return render(request, 'library/coming_soon.html')
+

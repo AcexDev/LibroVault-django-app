@@ -357,7 +357,7 @@ img             { max-width: 100%; height: auto; }
 .card:hover {
   border-color: var(--accent) !important;
   box-shadow: var(--shadow-md);
-  transform: translateY(-2px);
+  /* transform: translateY(-2px); */
 }
 
 .card-body { padding: 22px 24px; }
@@ -509,7 +509,7 @@ select option { padding: 8px 12px; white-space: normal; }
 .btn-outline-info:hover, .btn-primary:hover {
   background: var(--accent-hover);
   box-shadow: 0 4px 16px var(--accent-glow);
-  transform: translateY(-2px);
+  /* transform: translateY(-2px); */
   color: #ffffff !important;
 }
 
@@ -549,7 +549,7 @@ select option { padding: 8px 12px; white-space: normal; }
   transition: var(--transition);
 }
 
-.media:hover { border-left-color: var(--accent-hover); box-shadow: var(--shadow-md); transform: translateY(-1px); }
+.media:hover { border-left-color: var(--accent-hover); box-shadow: var(--shadow-md); }
 
 .media-body h2, .media-body h3,
 .media-body h4, .media-body h5 { font-family: 'IBM Plex Serif', serif; color: var(--text-primary) !important; margin-bottom: 6px; }

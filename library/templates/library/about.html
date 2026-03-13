@@ -1,4 +1,46 @@
-{% extends "library/base.html" %} {% block content %}
-<h1>Acex Library</h1>
-<h3></h3>
+{% extends 'library/base.html' %}
+{% load static %}
+{% block content %}
+
+<div style="max-width: 640px; margin: 60px auto; padding: 0 20px;">
+
+  <!-- App info -->
+  <div style="margin-bottom: 48px; padding-bottom: 40px; border-bottom: 1px solid var(--border-subtle);">
+    <p style="font-family:'DM Mono',monospace; font-size:11px; text-transform:uppercase; letter-spacing:0.1em; color:var(--text-muted); margin-bottom:12px;">About</p>
+    <h1 style="font-family:'Gloock',serif; font-size:42px; font-weight:400; color:var(--text-primary); margin-bottom:16px; line-height:1.1;">AceX Library</h1>
+    <p style="font-family:'IBM Plex Serif',serif; font-style:italic; font-size:17px; color:var(--text-secondary); line-height:1.7;">
+      A personal library app for tracking, organising, and discovering books.
+      Built for readers who care about their collections.
+    </p>
+  </div>
+
+  <!-- Builder info -->
+  <div style="display:flex; align-items:center; gap:20px; margin-bottom:32px;">
+    <img
+      src="{{ 'https://res.cloudinary.com/dtrsdx9x9/image/upload/v1773417857/Acex_-_puhicw.jpg' }}"
+      alt="Profile"
+      style="width:64px; height:64px; border-radius:50%; object-fit:cover; border:2px solid var(--border-subtle); flex-shrink:0;"
+    />
+    <div>
+      <p style="font-family:'DM Mono',monospace; font-size:10px; text-transform:uppercase; letter-spacing:0.1em; color:var(--text-muted); margin-bottom:4px;">Built by</p>
+      <h2 style="font-family:'IBM Plex Serif',serif; font-size:20px; font-weight:600; color:var(--text-primary); margin:0 0 4px;">Abdulrazaq Muhammad Oyekunle</h2>
+      <p style="font-size:14px; color:var(--text-secondary); margin:0;">Junior Django Dev</p>
+    </div>
+  </div>
+
+  <!-- Social links -->
+  <div style="display:flex; gap:16px; flex-wrap:wrap;">
+    <a href="https://github.com/AcexDev" target="_blank" style="font-family:'DM Mono',monospace; font-size:12px; color:var(--accent); text-transform:uppercase; letter-spacing:0.08em; text-decoration:none;">
+      GitHub ↗
+    </a>
+    <a href="https://x.com/abdulrazaqm003" target="_blank" style="font-family:'DM Mono',monospace; font-size:12px; color:var(--accent); text-transform:uppercase; letter-spacing:0.08em; text-decoration:none;">
+      Twitter ↗
+    </a>
+    <a href="https://www.linkedin.com/in/muhammad-abdulrazaq-43433b381/" target="_blank" style="font-family:'DM Mono',monospace; font-size:12px; color:var(--accent); text-transform:uppercase; letter-spacing:0.08em; text-decoration:none;">
+      LinkedIn ↗
+    </a>
+  </div>
+
+</div>
+
 {% endblock content %}

@@ -66,7 +66,6 @@
 .quick-action-btn:hover {
   background: var(--accent-hover);
   box-shadow: 0 4px 14px var(--accent-glow);
-  transform: translateY(-2px);
   color: #ffffff !important;
 }
 
@@ -120,7 +119,6 @@
   border-color: var(--accent);
   border-top-color: var(--accent);
   box-shadow: var(--shadow-md);
-  transform: translateY(-2px);
 }
 
 .stat-header {
@@ -288,7 +286,6 @@
 .feature-card:hover {
   background: var(--border-subtle);
   border-color: var(--accent);
-  transform: translateX(4px);
 }
 
 .feature-header { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
@@ -342,7 +339,6 @@
 
 .popular-book-card:hover {
   border-color: var(--accent);
-  transform: translateY(-4px);
   box-shadow: var(--shadow-md);
 }
 
@@ -423,7 +419,6 @@
 
 .book-item:hover {
   border-color: var(--accent);
-  transform: translateY(-2px);
   box-shadow: var(--shadow-sm);
 }
 
@@ -540,7 +535,6 @@
 .cta-btn-primary:hover {
   background: var(--accent-hover);
   box-shadow: 0 8px 28px var(--accent-glow);
-  transform: translateY(-3px);
   color: #ffffff !important;
 }
 
@@ -553,7 +547,6 @@
 .cta-btn-secondary:hover {
   background: var(--bg-secondary);
   border-color: var(--accent);
-  transform: translateY(-3px);
   color: var(--text-primary) !important;
 }
 
@@ -626,7 +619,6 @@
 .features-grid .feature-card:hover {
   border-color: var(--accent);
   box-shadow: var(--shadow-md);
-  transform: translateY(-4px);
 }
 
 .features-grid .feature-icon {

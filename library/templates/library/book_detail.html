@@ -84,7 +84,7 @@
           max="{{book.page_count}}"
           value="{{pages_read|default:'0'}}"
           name="updated_page_count">
-        <button class="progress-btn" type="submit">Update</button>
+        <button class="progress-btn" type="submit">Save Progress</button>
         </div>
       </form>
 
@@ -92,7 +92,7 @@
   </div>
   <div class="book-update-delete">
       <a class="btn btn-outline mr-4 mt-1 mb-4"
-        href="{% url 'book-update' book.id %}">Update</a>
+        href="{% url 'book-update' book.id %}">Edit Book</a>
 
       <a class="btn btn-outline-danger mr-4 mt-1 mb-4"
         href="{% url 'book-delete' book.id %}">Delete</a>

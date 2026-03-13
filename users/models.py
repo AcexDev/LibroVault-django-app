@@ -4,11 +4,21 @@ from PIL import Image
 from library.models import Book
 from django.core.exceptions import ValidationError
 import os
+from cloudinary.models import CloudinaryField
 
 # Create your models here.
 class Profile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
-    image = models.ImageField(default='default.jpg', upload_to='profile_pics')
+    image = CloudinaryField(default='https://res.cloudinary.com/dtrsdx9x9/image/upload/v1773418355/default_htbobq.jpg', 
+                              folder='profile_pics',
+                              transformation={
+                                'quality': 'auto:low',
+                                'fetch_format': 'auto',
+                                'width': 200,
+                                'height': 200,
+                                'crop': 'fill',
+                                'gravity': 'face',
+                            })
     bio = models.CharField(max_length=100,blank=True)
 
     def __str__(self):
