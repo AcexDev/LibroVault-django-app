@@ -7,12 +7,13 @@ import urllib.parse
 from dotenv import load_dotenv
 from pathlib import Path
 import os
+from bookcollection.settings import GOOGLE_API_KEY
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 load_dotenv(BASE_DIR / '.env')
 
 endpoint = "https://www.googleapis.com/books/v1/volumes"
-api_key = os.getenv('API_KEY')
+api_key = GOOGLE_API_KEY
 def query_input(query): 
     if not query:
         return None
