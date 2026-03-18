@@ -73,11 +73,10 @@
       <p class="description">{{ book.book_description|truncatechars:200 }}</p>
       {% endif %}
       <div>
-      {% if book.book_viewability == "PARTIAL" %}
-        <button class="btn btn-sm btn-primary" 
-                onclick="openViewer('{{ book.book_google_id }}', '{{ book.book_title|escapejs }}')">
+        {% if book.book_viewability == "PARTIAL" %}
+        <a href="{{ book.book_link }}" target="_blank" class="btn btn-sm btn-primary">
           Read preview
-        </button>
+        </a>
       {% else %}
         <button class="btn btn-sm btn-outline-secondary" disabled>
           Preview unavailable
@@ -133,41 +132,6 @@
     <a href="?q={{ query }}&startIndex={{ next_index }}" class="btn btn-outline-info" title="Next Page">&#8250;</a>
   </div>
 </div>
-
-<!-- Viewer Modal -->
-<div id="viewerModal" style="display:none; position:fixed; top:0; left:0; 
-     width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:9999;">
-  <div style="position:relative; width:90%; height:90%; margin:2% auto; background:#fff;">
-    <button onclick="closeViewer()" 
-            style="position:absolute; top:10px; right:10px; z-index:10000;">✕ Close</button>
-    <div id="viewerCanvas" style="width:100%; height:100%;"></div>
-  </div>
-</div>
-
-<script>
-function openViewer(bookId, title) {
-
-  const modal = document.getElementById("viewerModal");
-  const canvas = document.getElementById("viewerCanvas");
-
-  modal.style.display = "block";
-
-  canvas.innerHTML = `
-    <iframe 
-      src="https://books.google.com/books?id=${bookId}&printsec=frontcover&output=embed"
-      style="width:100%; height:100%; border:none;"
-      allowfullscreen>
-    </iframe>
-  `;
-
-}
-
-function closeViewer() {
-  const modal = document.getElementById("viewerModal");
-  const canvas = document.getElementById("viewerCanvas");
-
-  modal.style.display = "none";
-  canvas.innerHTML = "";
-}
-</script>
 {% endblock content %}
+
+

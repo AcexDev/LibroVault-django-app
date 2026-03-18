@@ -9,8 +9,7 @@ from pathlib import Path
 import os
 from bookcollection.settings import GOOGLE_API_KEY
 
-BASE_DIR = Path(__file__).resolve().parent.parent
-load_dotenv(BASE_DIR / '.env')
+
 
 endpoint = "https://www.googleapis.com/books/v1/volumes"
 api_key = GOOGLE_API_KEY
@@ -106,7 +105,7 @@ def book_query():
 
 def save_book(user:User, book_data:dict):
     title = book_data['book_title']
-    author = book_data['book_author']
+    author = book_data['book_authors']
     isbn = book_data['isbn']
     book_google_id = book_data['book_google_id']
 

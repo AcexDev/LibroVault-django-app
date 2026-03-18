@@ -10,11 +10,11 @@ import os
 BASE_DIR = Path(__file__).resolve().parent.parent
 from dotenv import load_dotenv
 load_dotenv(BASE_DIR / '.env')
-GOOGLE_API_KEY = os.environ.get('GOOGLE_API_KEY')
-# GOOGLE_API_KEY = None
+# GOOGLE_API_KEY = os.environ.get('GOOGLE_API_KEY')
+GOOGLE_API_KEY = None
 
-if not GOOGLE_API_KEY:
-    raise ValueError("GOOGLE_BOOKS_API not set")
+# if not GOOGLE_API_KEY:
+#     raise ValueError("GOOGLE_BOOKS_API not set")
 
 cloudinary_name = os.environ.get("CLOUDINARY_CLOUD_NAME")
 cloudinary_api_key = os.environ.get("CLOUDINARY_API_KEY")
@@ -28,11 +28,11 @@ cloudinary_secret_key = os.environ.get("CLOUDINARY_API_SECRET")
 SECRET_KEY = os.getenv('SECRET_KEY')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-# DEBUG = os.environ.get("DEBUG", "False").lower() == "true"
-DEBUG = True
+DEBUG = os.environ.get("DEBUG", "False").lower() == "true"
+# DEBUG = True
 
-# ALLOWED_HOSTS = os.environ.get("ALLOWED_HOSTS").split(" ")
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = os.environ.get("ALLOWED_HOSTS").split(" ")
+# ALLOWED_HOSTS = []
 
 # AUTHENTICATION_BACKENDS = [
 #     'users.backends.EmailBackend',  # our custom email backend
