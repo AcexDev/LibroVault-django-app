@@ -22,6 +22,16 @@
       </form>
 
       <form method="GET">
+        <select name="sort" onchange="this.form.submit()">
+          <option value="">Recently Added</option>
+          {% for choice in order_choices %}
+          <option value="{{ choice }}" {% if request.GET.sort == choice %}selected{% endif %}>{{ choice }}
+          </option>
+          {% endfor %}
+        </select>
+      </form>
+
+      <form method="GET">
         {% if request.GET.favourite %}
           <button class="btn btn-outline-info fave-toggle" type="submit">
             <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">

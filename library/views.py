@@ -202,6 +202,7 @@ class UserBookDeleteView(LoginRequiredMixin, DeleteView):
             # kwargs={'username':self.request.user.username}
         )        
 
+from django.http import JsonResponse
 
     #Book Explore and Addition Views
 def book_query(request):
@@ -252,8 +253,10 @@ def add_book(request):
 
 #USER BOOK COLLECTION VIEW
 def book_view_status_filter(request):
+    order_choices = ["Alphabetically(A-Z)", "Alphabetically(Z-A)", "Date Added"]
     book_status = request.GET.get('status')
     favourite = request.GET.get('favourite')
+    display_order = request.GET.get('sort')
     active_user = request.user
     context = None
     book_list = []
@@ -296,6 +299,11 @@ def book_view_status_filter(request):
             'status': book_status,
             'status_choices' : choices,
         }
+
+        if display_order:
+            context = {
+                "order_choices": order_choices
+            }
     
 
     # return render(request, 'library/book_filter.html',context)
