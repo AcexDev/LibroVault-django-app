@@ -5,12 +5,17 @@
 
 <link rel="stylesheet" type="text/css" href="{% static 'library/query.css' %}" />
 
+<div style="position: fixed; top: 70px; right: 20px; margin-bottom: 20px;">
+    <a href="{% url 'book-create' %}" class="btn btn-outline-info">Add Book</a>
+</div>
   <!-- Filter Section -->
   <div class="filter-section">
-    <h1>Filter Books</h1>
-    
-    <div class="filter-controls">
+  <h1>Filter Books</h1>
+
+  <div class="filter-controls">
+    <div class="filter-left">
       <form method="GET">
+        <span>Status:</span>
         <select name="status" onchange="this.form.submit()">
           <option value="">All Books</option>
           {% for choice in status_choices %}
@@ -21,17 +26,7 @@
         </select>
       </form>
 
-      <form method="GET">
-        <select name="sort" onchange="this.form.submit()">
-          <option value="">Recently Added</option>
-          {% for choice in order_choices %}
-          <option value="{{ choice }}" {% if request.GET.sort == choice %}selected{% endif %}>{{ choice }}
-          </option>
-          {% endfor %}
-        </select>
-      </form>
-
-      <form method="GET">
+      <!-- <form method="GET">
         {% if request.GET.favourite %}
           <button class="btn btn-outline-info fave-toggle" type="submit">
             <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
@@ -41,25 +36,35 @@
           </button>
         {% else %}
           <button class="btn btn-outline-info fave-toggle active" type="submit" name="favourite" value="true">
-            
             <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" stroke="currentColor">
               <path d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"/>
             </svg>
             View Favourites
           </button>
         {% endif %}
+      </form> -->
+    </div>
+
+    <div class="filter-right">
+      <form method="GET" class="sort-form">
+          <span>Sort:</span>
+          <select name="sort" onchange="this.form.submit()">
+              <option value="date_new" {% if request.GET.sort == "date_new" %}selected{% endif %}>Newest</option>
+              <option value="title_asc" {% if request.GET.sort == "title_asc" %}selected{% endif %}>Title (A–Z)</option>
+              <option value="title_desc" {% if request.GET.sort == "title_desc" %}selected{% endif %}>Title (Z–A)</option>
+              <option value="date_old" {% if request.GET.sort == "date_old" %}selected{% endif %}>Oldest</option>
+          </select>
       </form>
     </div>
   </div>
-
-<div style="position: fixed; top: 70px; right: 20px;">
-    <a href="{% url 'book-create' %}" class="btn btn-outline-info">Add Book</a>
 </div>
+
+
 <div class="books-results">
   {% if request.GET.favourite %}
-  <h2>Favourite Books</h2>
+  <h2>Favourite Books</h2> 
   {% else %}
-  <h2>{{ status|capfirst }}</h2>
+  <h2>{{ status|default:"All Books"|capfirst }}</h2>
   {% endif %}
   {% for book in books %}
   <div class="result-card">

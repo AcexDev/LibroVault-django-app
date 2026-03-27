@@ -235,7 +235,7 @@ def add_book(request):
     if request.method == "POST":
         book_data = {
             "book_title": request.POST.get('title'),
-            "book_author": request.POST.get('author'),
+            "book_authors": request.POST.get('author'),
             "book_thumbnail" : request.POST.get('cover'),
             "book_categories": request.POST.get('categories'),
             "book_description": request.POST.get('description'),
@@ -253,14 +253,33 @@ def add_book(request):
 
 #USER BOOK COLLECTION VIEW
 def book_view_status_filter(request):
-    order_choices = ["Alphabetically(A-Z)", "Alphabetically(Z-A)", "Date Added"]
+    ORDER_CHOICES = [
+    ("title_asc", "Title (A–Z)"),
+    ("title_desc", "Title (Z–A)"),
+    ("date_old", "Date added (Oldest first)"),
+    ("date_new", "Date added (Newest first)")
+]
+
+    ORDER_VALUES = {
+        "title_asc": "book__title",
+        "title_desc": "-book__title",
+        "date_old": "added_at",
+        "date_new": "-added_at"
+    }
+
+    ORDER_LABELS = [item[1] for item in ORDER_CHOICES]
     book_status = request.GET.get('status')
     favourite = request.GET.get('favourite')
-    display_order = request.GET.get('sort')
+    choice_value = request.GET.get('sort')
     active_user = request.user
     context = None
     book_list = []
+    status_choices = UserBook.STATUS_CHOICES
+    choices = [choice[0] for choice in status_choices]
+    filter = False
+
     if favourite:
+        filter = True
         fave_books = UserBook.objects.filter(
             user=active_user,
             favourite=True
@@ -271,12 +290,21 @@ def book_view_status_filter(request):
             book_obj.favourite = item.favourite
             book_list.append(book_obj)
 
-        context = {
-            'books': book_list
-        }
+    if choice_value:
+        filter = True
+        value = ORDER_VALUES.get(choice_value, '-added_at')
+        user_books = UserBook.objects.filter(
+            user=active_user
+        ).order_by(value)
+
+        for item in user_books:
+            book_obj = item.book
+            book_obj.favourite = item.favourite
+            book_list.append(book_obj)
+
     
 
-    else:
+    if not filter:
         status_choices = UserBook.STATUS_CHOICES
         choices = [choice[0] for choice in status_choices]
         if not book_status:
@@ -294,16 +322,15 @@ def book_view_status_filter(request):
             book_list.append(book_obj)
         
 
-        context = {
+    context = {
             'books': book_list,
             'status': book_status,
             'status_choices' : choices,
+            "order_choices": ORDER_LABELS,
+            "sort_choice" : choice_value
         }
 
-        if display_order:
-            context = {
-                "order_choices": order_choices
-            }
+        
     
 
     # return render(request, 'library/book_filter.html',context)
