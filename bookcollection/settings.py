@@ -10,11 +10,11 @@ import os
 BASE_DIR = Path(__file__).resolve().parent.parent
 from dotenv import load_dotenv
 load_dotenv(BASE_DIR / '.env')
-# GOOGLE_API_KEY = os.environ.get('GOOGLE_API_KEY')
-GOOGLE_API_KEY = None
+GOOGLE_API_KEY = os.environ.get('GOOGLE_API_KEY')
+# GOOGLE_API_KEY = None
 
-# if not GOOGLE_API_KEY:
-#     raise ValueError("GOOGLE_BOOKS_API not set")
+if not GOOGLE_API_KEY:
+    raise ValueError("GOOGLE_BOOKS_API not set")
 
 cloudinary_name = os.environ.get("CLOUDINARY_CLOUD_NAME")
 cloudinary_api_key = os.environ.get("CLOUDINARY_API_KEY")
