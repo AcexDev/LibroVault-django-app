@@ -74,9 +74,11 @@
       {% endif %}
       <div>
         {% if book.book_viewability == "PARTIAL" %}
-        <a href="{{ book.book_link }}" target="_blank" class="btn btn-sm btn-primary">
-          Read preview
-        </a>
+          <a href="https://books.google.com/books?id={{ book.book_google_id }}&printsec=frontcover&source=gbs_atb" 
+            target="_blank" 
+            class="btn btn-sm btn-primary">
+            Read preview
+          </a>
       {% else %}
         <button class="btn btn-sm btn-outline-secondary" disabled>
           Preview unavailable
