@@ -73,8 +73,7 @@
       <p class="description">{{ book.book_description|truncatechars:200 }}</p>
       {% endif %}
       <div>
-        <span>{{ book.book_link }}</span>
-        {% if book.book_viewability == "PARTIAL" %}
+        {% if book.book_viewability == "PARTIAL" and "play.google.com" not in book.book_link %}
         <a href="{{ book.book_link }}" target="_blank" class="btn btn-sm btn-primary">
           Read preview
         </a>
