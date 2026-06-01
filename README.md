@@ -92,7 +92,7 @@ User ──< UserFollow ──> User
 
 ```bash
 # Clone the repo
-git clone https://github.com/your-username/librovault.git
+git clone https://github.com/AcexDev/librovault.git
 cd librovault
 
 # Create and activate a virtual environment
