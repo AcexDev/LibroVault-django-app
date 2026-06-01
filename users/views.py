@@ -10,7 +10,7 @@ from django.contrib.auth import login
 
 def login_view(request):
     if request.user.is_authenticated:
-        return redirect("library-home")  # or wherever
+        return redirect("library-home") 
 
     form = UserLoginForm(request.POST or None)
     if request.method == "POST" and form.is_valid():

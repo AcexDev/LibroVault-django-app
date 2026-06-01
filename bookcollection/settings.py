@@ -1,3 +1,4 @@
+# PROJECT SETTINGS
 #Import dj-database-url
 import dj_database_url
 
@@ -28,11 +29,11 @@ cloudinary_secret_key = os.environ.get("CLOUDINARY_API_SECRET")
 SECRET_KEY = os.getenv('SECRET_KEY')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = os.environ.get("DEBUG", "False").lower() == "true"
-# DEBUG = True
+# DEBUG = os.environ.get("DEBUG", "False").lower() == "true"
+DEBUG = True
 
-ALLOWED_HOSTS = os.environ.get("ALLOWED_HOSTS").split(" ")
-# ALLOWED_HOSTS = []
+# ALLOWED_HOSTS = os.environ.get("ALLOWED_HOSTS").split(" ")
+ALLOWED_HOSTS = []
 
 # AUTHENTICATION_BACKENDS = [
 #     'users.backends.EmailBackend',  # our custom email backend
@@ -116,24 +117,24 @@ WSGI_APPLICATION = 'bookcollection.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/6.0/ref/settings/#databases
 
-# DATABASES = {
-#     'default': {
-#         'ENGINE': 'django.db.backends.sqlite3',
-#         'NAME': BASE_DIR / 'db.sqlite3',
-#     }
-# }
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.sqlite3',
+        'NAME': BASE_DIR / 'db.sqlite3',
+    }
+}
 
 db_url = os.getenv("DATABASE_URL")
 if not db_url:
     raise ValueError("DATABASE URL NOT SET")
 
 
-DATABASES = {
-    'default': dj_database_url.parse(
-        db_url,
-        conn_max_age=600
-    )
-}
+# DATABASES = {
+#     'default': dj_database_url.parse(
+#         db_url,
+#         conn_max_age=600
+#     )
+# }
 
 # Password validation
 # https://docs.djangoproject.com/en/6.0/ref/settings/#auth-password-validators
