@@ -1,35 +1,45 @@
 # ROOT URLS
 from django.contrib import admin
 from django.urls import path, include
-from users import views as user_views
-from django.contrib.auth import views as auth_views
-from django.conf import settings
-from django.conf.urls.static import static
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import AllowAny
+from rest_framework.response import Response
+from rest_framework.reverse import reverse
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def api_root(request):
+    """Index of the API, so the entry points are discoverable from the root."""
+    return Response({
+        'auth': {
+            'register': reverse('register', request=request),
+            'login': reverse('login', request=request),
+            'refresh': reverse('token-refresh', request=request),
+            'logout': reverse('logout', request=request),
+            'me': reverse('current-user', request=request),
+            'password_reset': reverse('password-reset', request=request),
+            'password_reset_confirm': reverse('password-reset-confirm', request=request),
+        },
+        'books': {
+            'list': reverse('book-list', request=request),
+            'popular': reverse('book-popular', request=request),
+            'search': reverse('book-search', request=request),
+            'add': reverse('book-add', request=request),
+            'meta': reverse('book-meta', request=request),
+        },
+        'library': {
+            'list': reverse('library-list', request=request),
+            'dashboard': reverse('dashboard', request=request),
+        },
+    })
+
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('', include('library.urls')),
-    path('register/', user_views.register, name='register'),
-    path('login/', auth_views.LoginView.as_view(template_name='users/login.html'), name='login'),
-#     path('login/', user_views.login_view, name='login'),
-    path('logout/', auth_views.LogoutView.as_view(), name='logout'),
-    path('profile/', user_views.profile, name='profile'),
-    path('password-reset/', 
-         auth_views.PasswordResetView.as_view(template_name='users/password_reset.html'), 
-         name='password_reset'),
-    path('password-reset/done/', 
-         auth_views.PasswordResetView.as_view(template_name='users/password_reset_done.html'), 
-         name='password_reset_done'),
-    path('password-reset-confirm/<uidb64>/<token>', 
-         auth_views.PasswordResetConfirmView.as_view(template_name='users/password_reset_confirm.html'), 
-         name='password_reset_confirm'),
-    path('password-reset-complete/', 
-         auth_views.PasswordResetCompleteView.as_view(template_name='users/password_reset_complete.html'), 
-         name='password_reset_complete'),
-    path('account/', user_views.account, name='account-info'),
-    path('about/', user_views.about, name='library-about'),
-    path('coming/', user_views.coming_feature, name='coming-soon')
+    path('api/', api_root, name='api-root'),
+    path('api/auth/', include('users.urls')),
+    path('api/', include('library.urls')),
+    # Session login for the DRF browsable API in development.
+    path('api-auth/', include('rest_framework.urls')),
 ]
-
-if settings.DEBUG:
-    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

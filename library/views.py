@@ -1,342 +1,270 @@
-#library_views
-
-from django.shortcuts import render, get_object_or_404, redirect
-from django.http import HttpResponse
-from .models import Book, BookLink
-from django.contrib.auth.forms import UserCreationForm
-from django.views.generic import ListView, CreateView, DetailView, UpdateView, DeleteView
-from .models import User
-from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
-from django.contrib.auth.models import User
-from django.core.paginator import Paginator
-import requests, pprint
-from .utils import query_input, fetch_results, save_book
-from django.contrib.auth.decorators import login_required
-from users.models import UserBook
-from django import forms
-from .forms import BookCreateForm, BookUpdateForm
-from django.urls import reverse_lazy
-from django import template
-from django.contrib import messages
+# Library Views
 from django.db.models import Count
+from django.shortcuts import get_object_or_404
+from rest_framework import mixins, status, viewsets
+from rest_framework.decorators import action
+from rest_framework.permissions import SAFE_METHODS, AllowAny, BasePermission, IsAuthenticated
+from rest_framework.response import Response
+from rest_framework.views import APIView
+
+from users.models import UserBook
+
+from .filters import ORDER_CHOICES, filter_library_queryset
+from .models import BOOK_SOURCES, Book
+from .serializers import (
+    BookCreateSerializer,
+    BookDetailSerializer,
+    BookSerializer,
+    BookUpdateSerializer,
+    ExternalBookSerializer,
+    PopularBookSerializer,
+    ReadingProgressSerializer,
+    UserBookSerializer,
+)
+from .utils import fetch_results, query_input, save_book
+
+PAGE_SIZE = 40  # Google Books results per request
 
 
+class InUserLibrary(BasePermission):
+    """
+    Catalogue rows are shared between users, so editing one is only allowed
+    when the book is in the requesting user's own library.
+    """
+
+    message = "You can only edit books that are in your library."
+
+    def has_object_permission(self, request, view, obj):
+        if request.method in SAFE_METHODS:
+            return True
+        return UserBook.objects.filter(user=request.user, book=obj).exists()
 
 
-def about(request):
-    return render(request, 'library/about.html')
+class BookViewSet(mixins.ListModelMixin,
+                  mixins.RetrieveModelMixin,
+                  mixins.CreateModelMixin,
+                  mixins.UpdateModelMixin,
+                  viewsets.GenericViewSet):
+    """
+    The shared book catalogue.
+
+    Reads are public. Creating a book adds it to the caller's library too, and
+    updates are limited to books the caller already has.
+    """
+
+    queryset = Book.objects.select_related('booklink').all()
+    filterset_fields = ['genre', 'source']
+    search_fields = ['title', 'author', 'isbn']
+    ordering_fields = ['title', 'author', 'created_at', 'published_year', 'page_count']
+    ordering = ['title']
+
+    def get_permissions(self):
+        if self.action in ('list', 'retrieve', 'popular', 'search', 'meta'):
+            return [AllowAny()]
+        if self.action in ('update', 'partial_update'):
+            return [IsAuthenticated(), InUserLibrary()]
+        return [IsAuthenticated()]
+
+    def get_serializer_class(self):
+        if self.action == 'create':
+            return BookCreateSerializer
+        if self.action in ('update', 'partial_update'):
+            return BookUpdateSerializer
+        if self.action == 'retrieve':
+            return BookDetailSerializer
+        if self.action == 'popular':
+            return PopularBookSerializer
+        if self.action == 'add':
+            return ExternalBookSerializer
+        return BookSerializer
+
+    @action(detail=False, methods=['get'], url_path='popular', url_name='popular')
+    def popular(self, request):
+        """The ten most widely held books, manual additions excluded."""
+        books = Book.objects.exclude(source="Manual").annotate(
+            book_count=Count('userbook')
+        ).order_by('-book_count')[:10]
+        return Response(self.get_serializer(books, many=True).data)
+
+    @action(detail=False, methods=['get'], url_path='search', url_name='search')
+    def search(self, request):
+        """
+        Proxies a title search to the Google Books API. Paging follows Google's
+        own offset scheme via `startIndex`.
+        """
+        query = request.query_params.get('q')
+        try:
+            start_index = int(request.query_params.get('startIndex', 0))
+        except (TypeError, ValueError):
+            return Response(
+                {'startIndex': "Must be an integer."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        start_index = max(start_index, 0)
+
+        query_params = query_input(query)
+        if query_params:
+            query_params["startIndex"] = start_index
+
+        books = fetch_results(query, query_params) if query else []
+
+        return Response({
+            'query': query,
+            'count': len(books),
+            'start_index': start_index,
+            'next_index': start_index + PAGE_SIZE,
+            'prev_index': max(start_index - PAGE_SIZE, 0),
+            'results': ExternalBookSerializer(books, many=True).data,
+        })
+
+    @action(detail=False, methods=['post'], url_path='add', url_name='add',
+            permission_classes=[IsAuthenticated])
+    def add(self, request):
+        """
+        Adds an externally sourced book (typically a search result) to the
+        catalogue if needed, then to the caller's library as a wishlist entry.
+        """
+        serializer = ExternalBookSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        user_book = save_book(request.user, serializer.validated_data)
+
+        return Response(
+            {
+                'detail': "Book added successfully!",
+                'library_entry': UserBookSerializer(
+                    user_book, context={'request': request}
+                ).data,
+            },
+            status=status.HTTP_201_CREATED,
+        )
+
+    @action(detail=False, methods=['get'], url_path='meta', url_name='meta')
+    def meta(self, request):
+        """Genre, source, status and sort choices for building forms."""
+        def pairs(choices):
+            return [{'value': value, 'label': label} for value, label in choices]
+
+        return Response({
+            'genres': pairs(Book.GENRE_CHOICES),
+            'sources': pairs(BOOK_SOURCES),
+            'statuses': pairs(UserBook.STATUS_CHOICES),
+            'sort_options': pairs(ORDER_CHOICES),
+        })
 
 
-            #HOMEPAGE BOOKS VIEW
+class LibraryViewSet(mixins.ListModelMixin,
+                     mixins.RetrieveModelMixin,
+                     mixins.UpdateModelMixin,
+                     mixins.DestroyModelMixin,
+                     viewsets.GenericViewSet):
+    """
+    The caller's own library. Entries are addressed by book id, so the same id
+    works here and against /api/books/.
+    """
 
-class BookListView(ListView, LoginRequiredMixin):
-    model = Book
-    template_name = 'library/user_homepage.html'
-    context_object_name = 'user_books'
-    paginate_by = 10 
+    serializer_class = UserBookSerializer
+    permission_classes = [IsAuthenticated]
+    lookup_field = 'book_id'
+    lookup_url_kwarg = 'book_id'
+    # Filtering is hand-rolled in get_queryset to keep the status/favourite/sort
+    # query-string contract stable.
+    filter_backends = []
 
     def get_queryset(self):
-        return UserBook.objects.filter(user=self.request.user)
-    
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
+        return UserBook.objects.filter(
+            user=self.request.user
+        ).select_related('book', 'book__booklink')
 
-        user_books = UserBook.objects.filter(user=self.request.user).order_by('-added_at')
-        books = [ub.book for ub in user_books]
-        popular_books = Book.objects.exclude(source="Manual").annotate(
-                            book_count=Count('userbook')
-                        ).order_by('-book_count')[:10]
-        context['books'] = books
-        context['book_count'] = self.get_queryset().count()
-    
-        context['favourites_count'] = self.get_queryset().filter(favourite=True).count()
-        context['reading_count'] = self.get_queryset().filter(status='reading').count()
-        context['popular_books'] = popular_books
-        
-        return context
-      
-    
-def homepage(request):
-    if request.user.is_authenticated:
-        return redirect('library-home')
-    else:
-        return render(request, 'library/generic_homepage.html')
+    def list(self, request, *args, **kwargs):
+        queryset = filter_library_queryset(self.get_queryset(), request.query_params)
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            return self.get_paginated_response(self.get_serializer(page, many=True).data)
+        return Response(self.get_serializer(queryset, many=True).data)
 
-            # BOOK DETAIL FEATURES AND CRUD
-class BookDetailView(DetailView):
-    # model = Book
-    model = Book
-    template_name = 'library/book_detail.html'
-    context_object_name = 'book'
-    
-    def get_context_data(self, **kwargs):
-        context =  super().get_context_data(**kwargs)
-        userbook = UserBook.objects.get(user=self.request.user, book=self.object)
-        context['pages_read'] = userbook.pages_read
-        
-        return context
-
-def update_book_page(request,pk):
-    if request.method == "POST":
-        updated_count = int(request.POST.get('updated_page_count'))
-        book = get_object_or_404(Book, pk=pk)
-        page_count = book.page_count
-        if updated_count == page_count:
-            UserBook.objects.update_or_create(
-                user=request.user,
-                book=book,
-                defaults={
-                    "pages_read":updated_count,
-                    "status": "completed"
-                }
-            )
-        else:
-            UserBook.objects.update_or_create(
-                user=request.user,
-                book=book,
-                defaults={
-                    "pages_read":updated_count,
-                    "status": "reading"
-                }
-            )
-
-    messages.success(request, "Reading Progress Updated!")
-    return redirect(request.META.get('HTTP_REFERER', '/'))
-
-def favourite_toggle(request,pk):
-    book = get_object_or_404(Book, pk=pk)
-    user_book = get_object_or_404(UserBook, user=request.user, book=book)
-
-    user_book.favourite = not user_book.favourite
-    user_book.save()
-
-    messages.success(request, "Book added to favourites!")
-    return redirect(request.META.get('HTTP_REFERER', '/'))
-    
-
-
-#PERSONAL ADDITION BOOK CREATION VIEW
-class BookCreateView(CreateView, LoginRequiredMixin):
-    model = Book    
-    # template_name = 'library/book_.html'
-    form_class = BookCreateForm
-    context_object_name = 'books'
-    
-    def form_valid(self, form):
-        # form.instance.user = self.request.user
-        response =  super().form_valid(form)
-        book = self.object
-
-        UserBook.objects.create(
-            user = self.request.user,
-            book = book,
-            status = form.cleaned_data['status']
-        )
+    def destroy(self, request, *args, **kwargs):
+        response = super().destroy(request, *args, **kwargs)
+        response.data = {'detail': "Book succcessfully deleted!"}
+        response.status_code = status.HTTP_200_OK
         return response
 
-    # Required as 'user-books' requires a username
-    def get_success_url(self):
-        messages.success(self.request, 'Book successfully created!')
-        return reverse_lazy('user-books')
-        
-    
-    
-# @login_required
-# def create_book(request, book)
-    
-class BookUpdateView(LoginRequiredMixin, UpdateView):
-    model = Book
-    form_class = BookUpdateForm
-    
-    #SEPARATING UPDATING VIEW FORMS DEPENDING ON BOOK SOURCE
-    def get_form(self, form_class=None):
-        book = self.get_object()
-        form = super().get_form(form_class)
-        if book.source == 'Manual':
-            allowed =  ['title', 'author', 'isbn', 'genre', 'description', 'status']
-        else:
-            allowed =  ['status']
+    @action(detail=True, methods=['post'], url_path='progress', url_name='progress')
+    def progress(self, request, book_id=None):
+        """
+        Records pages read. Reaching the last page marks the book completed,
+        anything short of that marks it as being read.
+        """
+        book = get_object_or_404(Book, pk=book_id)
 
-        for field in list(form.fields.keys()):
-            if field not in allowed:
-                form.fields.pop(field)
-                
-        return form
-    
-    template_name = 'library/book_update_form.html'
-    context_object_name = 'book'
+        serializer = ReadingProgressSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        pages_read = serializer.validated_data['pages_read']
 
-    def form_valid(self, form):
-        form.instance.owner = self.request.user
-        response =  super().form_valid(form)
+        if pages_read > book.page_count:
+            return Response(
+                {'pages_read': ["Pages Read cannot exceed total pages"]},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
-        UserBook.objects.update_or_create(
-            user = self.request.user,
-            book = self.object,
+        user_book, _ = UserBook.objects.update_or_create(
+            user=request.user,
+            book=book,
             defaults={
-            'status' : form.cleaned_data['status']
-            }            
+                'pages_read': pages_read,
+                'status': "completed" if pages_read == book.page_count else "reading",
+            },
         )
 
-        messages.success(self.request, 'Book successfully updated!')
+        return Response({
+            'detail': "Reading Progress Updated!",
+            'library_entry': UserBookSerializer(
+                user_book, context={'request': request}
+            ).data,
+        })
 
-        return response
-    
-    
-# To delete User books
-class UserBookDeleteView(LoginRequiredMixin, DeleteView):
-    model = UserBook
-    template_name = 'library/book_confirm_delete.html'
-    
+    @action(detail=True, methods=['post'], url_path='favourite', url_name='favourite')
+    def favourite(self, request, book_id=None):
+        """Flips the favourite flag on a library entry."""
+        user_book = self.get_object()
+        user_book.favourite = not user_book.favourite
+        user_book.save()
 
-    def get_object(self):
-        book_id = self.kwargs["pk"]  # this is the Book's ID from the URL
-        return get_object_or_404(
-            UserBook,
-            user=self.request.user,
-            book_id=book_id
-        )
-    
-    def get_success_url(self):
-        messages.success(self.request, "Book succcessfully deleted!")
-        return reverse_lazy(
-            'user-books',
-            # kwargs={'username':self.request.user.username}
-        )        
+        return Response({
+            'detail': (
+                "Book added to favourites!" if user_book.favourite
+                else "Book removed from favourites!"
+            ),
+            'library_entry': UserBookSerializer(
+                user_book, context={'request': request}
+            ).data,
+        })
 
-from django.http import JsonResponse
 
-    #Book Explore and Addition Views
-def book_query(request):
-    query = request.GET.get("q")
-    start_index = int(request.GET.get("startIndex", 0))
+class DashboardView(APIView):
+    """
+    Everything the old library home page rendered: the caller's books, their
+    counts by state, and what is popular across all users.
+    """
 
-    query_params = query_input(query)
+    permission_classes = [IsAuthenticated]
 
-    if query_params:
-        query_params["startIndex"] = start_index
-
-    if not query:
-        books = []
-    else:
-        books = fetch_results(query, query_params)
-
-    context = {
-        "books": books,
-        "query": query,
-        "start_index": start_index,
-        "next_index": start_index + 40,
-        "prev_index": max(start_index - 40, 0),
-        "original_page": 0
-    }
-
-    return render(request, "library/query.html", context)
-
-@login_required
-def add_book(request):
-    if request.method == "POST":
-        book_data = {
-            "book_title": request.POST.get('title'),
-            "book_authors": request.POST.get('author'),
-            "book_thumbnail" : request.POST.get('cover'),
-            "book_categories": request.POST.get('categories'),
-            "book_description": request.POST.get('description'),
-            "isbn": request.POST.get('isbn', None),
-            "book_google_id": request.POST.get('google_id', None),
-            "book_link": request.POST.get('link', None),
-            "book_viewability": request.POST.get('viewability'),
-            "page_count": int(request.POST.get("page_count") or 0),  #Convert to int and handle null results
-            "published_date": request.POST.get("published_year", None)
-        }
-
-    save_book(request.user, book_data)
-    messages.success(request, "Book added successfully!")
-    return redirect(request.META.get('HTTP_REFERER', '/'))   #To return to Previous Page
-
-#USER BOOK COLLECTION VIEW
-def book_view_status_filter(request):
-    ORDER_CHOICES = [
-    ("title_asc", "Title (A–Z)"),
-    ("title_desc", "Title (Z–A)"),
-    ("date_old", "Date added (Oldest first)"),
-    ("date_new", "Date added (Newest first)")
-]
-
-    ORDER_VALUES = {
-        "title_asc": "book__title",
-        "title_desc": "-book__title",
-        "date_old": "added_at",
-        "date_new": "-added_at"
-    }
-
-    ORDER_LABELS = [item[1] for item in ORDER_CHOICES]
-    book_status = request.GET.get('status')
-    favourite = request.GET.get('favourite')
-    choice_value = request.GET.get('sort')
-    active_user = request.user
-    context = None
-    book_list = []
-    status_choices = UserBook.STATUS_CHOICES
-    choices = [choice[0] for choice in status_choices]
-    filter = False
-
-    if favourite:
-        filter = True
-        fave_books = UserBook.objects.filter(
-            user=active_user,
-            favourite=True
-        ).order_by('-added_at')
-        
-        for item in fave_books:
-            book_obj = item.book
-            book_obj.favourite = item.favourite
-            book_list.append(book_obj)
-
-    if choice_value:
-        filter = True
-        value = ORDER_VALUES.get(choice_value, '-added_at')
+    def get(self, request):
         user_books = UserBook.objects.filter(
-            user=active_user
-        ).order_by(value)
+            user=request.user
+        ).select_related('book', 'book__booklink').order_by('-added_at')
 
-        for item in user_books:
-            book_obj = item.book
-            book_obj.favourite = item.favourite
-            book_list.append(book_obj)
+        popular_books = Book.objects.exclude(source="Manual").annotate(
+            book_count=Count('userbook')
+        ).order_by('-book_count')[:10]
 
-    
-
-    if not filter:
-        status_choices = UserBook.STATUS_CHOICES
-        choices = [choice[0] for choice in status_choices]
-        if not book_status:
-            user_books = UserBook.objects.filter(
-            user=active_user).order_by('-added_at')
-            book_status = "All Books"
-        else:
-            user_books = UserBook.objects.filter(
-                user=active_user,
-                status=book_status).order_by('-added_at')
-        
-        for item in user_books:
-            book_obj = item.book
-            book_obj.favourite = item.favourite
-            book_list.append(book_obj)
-        
-
-    context = {
-            'books': book_list,
-            'status': book_status,
-            'status_choices' : choices,
-            "order_choices": ORDER_LABELS,
-            "sort_choice" : choice_value
-        }
-
-        
-    
-
-    # return render(request, 'library/book_filter.html',context)
-    return render(request, 'library/user_accountbook_list.html',context)
-
-
-
+        return Response({
+            'book_count': user_books.count(),
+            'favourites_count': user_books.filter(favourite=True).count(),
+            'reading_count': user_books.filter(status='reading').count(),
+            'books': UserBookSerializer(
+                user_books, many=True, context={'request': request}
+            ).data,
+            'popular_books': PopularBookSerializer(
+                popular_books, many=True, context={'request': request}
+            ).data,
+        })
