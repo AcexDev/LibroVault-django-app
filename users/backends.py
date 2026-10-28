@@ -1,26 +1,26 @@
-from django.contrib.auth.backends import BaseBackend
+from django.contrib.auth.backends import ModelBackend
 from django.contrib.auth import get_user_model
 
-User = get_user_model()
+UserModel = get_user_model()
 
-class EmailBackend(BaseBackend):
+class EmailOrUsernameBackend(ModelBackend):
     """
-    Authenticate using email instead of username.
+    Authenticate Django forms with either the account username or email.
+
+    ModelBackend remains responsible for password checking and account status,
+    so this works with Django admin's standard username field as well as email.
     """
 
-    def authenticate(self, request, email=None, password=None, **kwargs):
-        if email is None or password is None:
-            return None
-        try:
-            user = User.objects.get(email=email)
-        except User.DoesNotExist:
-            return None
-        if user.check_password(password):
-            return user
-        return None
+    def authenticate(self, request, username=None, password=None, **kwargs):
+        username = username or kwargs.get(UserModel.USERNAME_FIELD)
+        if username and password and '@' in username:
+            matches = UserModel._default_manager.filter(email__iexact=username)
+            if matches.count() == 1:
+                username = matches.get().get_username()
 
-    def get_user(self, user_id):
-        try:
-            return User.objects.get(pk=user_id)
-        except User.DoesNotExist:
-            return None
+        return super().authenticate(
+            request,
+            username=username,
+            password=password,
+            **kwargs,
+        )

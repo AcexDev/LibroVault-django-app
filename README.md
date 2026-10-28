@@ -28,6 +28,7 @@ JSON in, JSON out — bring your own frontend.
 - **Media storage** — Cloudinary (profile pictures, with auto-crop and face detection)
 - **CORS** — `django-cors-headers`
 - **Filtering** — `django-filter`
+- **API documentation** — OpenAPI 3 schema, Swagger UI, and ReDoc (`drf-spectacular`)
 - **Static files** — WhiteNoise (admin + DRF browsable API)
 - **Deployment** — Render
 
@@ -121,6 +122,11 @@ python manage.py runserver
 ```
 
 `GET /api/` returns an index of the entry points. With `DEBUG=True` the DRF browsable API is available in a browser, and `/api-auth/login/` gives you a session for it.
+
+Interactive API documentation is available at `/api/docs/` (Swagger UI), with
+the OpenAPI schema at `/api/schema/` and ReDoc at `/api/redoc/`. In Swagger UI,
+use **Authorize** to enter a JWT access token as `Bearer <token>` before trying
+authenticated endpoints.
 
 ### Running tests
 
@@ -255,7 +261,7 @@ python manage.py assign_publishedYears
 - [ ] Open Library / Internet Archive as additional book sources
 - [ ] Book reviews and ratings
 - [ ] Public/private library visibility
-- [ ] OpenAPI schema + Swagger UI
+- [x] OpenAPI schema + Swagger UI
 
 ---
 
