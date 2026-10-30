@@ -3,6 +3,7 @@
 import dj_database_url
 
 
+from datetime import timedelta
 from pathlib import Path
 import os
 
@@ -29,16 +30,17 @@ cloudinary_secret_key = os.environ.get("CLOUDINARY_API_SECRET")
 SECRET_KEY = os.getenv('SECRET_KEY')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-# DEBUG = os.environ.get("DEBUG", "False").lower() == "true"
-DEBUG = True
+DEBUG = os.environ.get("DEBUG", "True").lower() == "true"
 
-ALLOWED_HOSTS = os.environ.get("ALLOWED_HOSTS").split(" ")
-# ALLOWED_HOSTS = []
+ALLOWED_HOSTS = os.environ.get("ALLOWED_HOSTS", "localhost 127.0.0.1").split(" ")
 
-# AUTHENTICATION_BACKENDS = [
-#     'users.backends.EmailBackend',  # our custom email backend
-#     'django.contrib.auth.backends.ModelBackend',  # fallback
-# ]
+# Base URL of the frontend that consumes this API. Used to build the link that
+# goes out in the password reset email.
+FRONTEND_URL = os.environ.get("FRONTEND_URL", "http://localhost:3000").rstrip("/")
+
+AUTHENTICATION_BACKENDS = [
+    'users.backends.EmailOrUsernameBackend',
+]
 
 
 # Application definition
@@ -48,16 +50,70 @@ INSTALLED_APPS = [
     'library.apps.LibraryConfig',
     'cloudinary',
     'cloudinary_storage',
-    'crispy_forms',
-    'crispy_bootstrap4',
+    'rest_framework',
+    'drf_spectacular',
+    'rest_framework_simplejwt',
+    'rest_framework_simplejwt.token_blacklist',
+    'django_filters',
+    'corsheaders',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    
+
 ]
+
+DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+REST_FRAMEWORK = {
+    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
+        # Kept so the browsable API and the admin session both work in dev.
+        'rest_framework.authentication.SessionAuthentication',
+    ],
+    'DEFAULT_PERMISSION_CLASSES': [
+        'rest_framework.permissions.IsAuthenticated',
+    ],
+    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
+    # Matches the old BookListView paginate_by
+    'PAGE_SIZE': 10,
+    'DEFAULT_FILTER_BACKENDS': [
+        'django_filters.rest_framework.DjangoFilterBackend',
+        'rest_framework.filters.SearchFilter',
+        'rest_framework.filters.OrderingFilter',
+    ],
+}
+
+SPECTACULAR_SETTINGS = {
+    'TITLE': 'LibroVault API',
+    'DESCRIPTION': 'API for book discovery, personal libraries, and reading progress.',
+    'VERSION': '1.0.0',
+    'SERVE_INCLUDE_SCHEMA': False,
+    'SWAGGER_UI_SETTINGS': {
+        'persistAuthorization': True,
+    },
+}
+
+SIMPLE_JWT = {
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=60),
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
+    'ROTATE_REFRESH_TOKENS': True,
+    'BLACKLIST_AFTER_ROTATION': True,
+    'AUTH_HEADER_TYPES': ('Bearer',),
+}
+
+# Origins allowed to call the API from a browser, space separated.
+CORS_ALLOWED_ORIGINS = [
+    origin for origin in os.environ.get("CORS_ALLOWED_ORIGINS", "").split(" ") if origin
+]
+CORS_ALLOW_CREDENTIALS = True
+
+# Without an explicit list there is nothing to talk to in dev, so open it up there only.
+if DEBUG and not CORS_ALLOWED_ORIGINS:
+    CORS_ALLOW_ALL_ORIGINS = True
 
 CLOUDINARY_STORAGE = {
     'CLOUD_NAME': cloudinary_name,
@@ -86,6 +142,7 @@ STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
+    'corsheaders.middleware.CorsMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -117,24 +174,26 @@ WSGI_APPLICATION = 'bookcollection.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/6.0/ref/settings/#databases
 
-# DATABASES = {
-#     'default': {
-#         'ENGINE': 'django.db.backends.sqlite3',
-#         'NAME': BASE_DIR / 'db.sqlite3',
-#     }
-# }
+# Set USE_SQLITE=1 to run against the local sqlite file instead of Postgres
+# (handy for running the test suite without touching the hosted database).
+if os.environ.get("USE_SQLITE", "").lower() in ("1", "true"):
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': BASE_DIR / 'db.sqlite3',
+        }
+    }
+else:
+    db_url = os.getenv("NEON_DATABASE_URL")
+    if not db_url:
+        raise ValueError("DATABASE URL NOT SET")
 
-db_url = os.getenv("NEON_DATABASE_URL")
-if not db_url:
-    raise ValueError("DATABASE URL NOT SET")
-
-
-DATABASES = {
-    'default': dj_database_url.parse(
-        db_url,
-        conn_max_age=0
-    )
-}
+    DATABASES = {
+        'default': dj_database_url.parse(
+            db_url,
+            conn_max_age=0
+        )
+    }
 
 # Password validation
 # https://docs.djangoproject.com/en/6.0/ref/settings/#auth-password-validators
@@ -170,16 +229,10 @@ USE_TZ = True
 # MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 # MEDIA_URL = '/media/'
 
-CRISPY_TEMPLATE_PACK = 'bootstrap4'
-CRISPY_ALLOWED_TEMPLATES_PACKS = 'bootstrap4'
-
-LOGIN_REDIRECT_URL = 'library-home'
-LOGOUT_REDIRECT_URL = 'login'
-LOGIN_URL = 'login'
-
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = 'smtp.gmail.com'
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
 EMAIL_HOST_USER = os.getenv('EMAIL_ADDRESS')
 EMAIL_HOST_PASSWORD = os.getenv('EMAIL_PASSWORD')
+DEFAULT_FROM_EMAIL = os.getenv('EMAIL_ADDRESS')

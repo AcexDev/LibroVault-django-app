@@ -2,8 +2,11 @@ cloudinary==1.44.1
 dj_database_url==3.1.2
 Django==6.0.5
 django-cloudinary-storage==0.3.0
-django-crispy-forms==2.5
-crispy-bootstrap4==2025.6
+django-cors-headers==4.9.0
+django-filter==25.2
+djangorestframework==3.17.1
+drf-spectacular==0.30.0
+djangorestframework-simplejwt==5.5.1
 gunicorn==25.1.0
 whitenoise==6.12.0
 psycopg2-binary==2.9.11
