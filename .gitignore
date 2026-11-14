@@ -2,6 +2,8 @@ weather_api.py
 weather.html
 __pycache__/
 *.py[cod]
+node_modules/
+frontend/dist/
 .env
 db.sqlite3
 .vscode/

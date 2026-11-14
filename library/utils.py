@@ -52,10 +52,12 @@ def query_values(item):
     book_categories = ", ".join(book_info.get('categories', []))
     book_description = book_info.get('description', None)
     book_thumbnail = book_info.get('imageLinks', {}).get('thumbnail', DEFAULT_THUMBNAIL)
-    book_link = book_info.get('infoLink', '#')
+    access_info = item.get('accessInfo', {})
+    # Prefer Google's reader URL so previewable titles open directly in the
+    # reading view; retain the information page as a fallback.
+    book_link = access_info.get('webReaderLink') or book_info.get('previewLink') or book_info.get('infoLink', '#')
     book_identifier = book_info.get('industryIdentifiers', [])
     book_google_id = item.get('id', '')
-    access_info = item.get('accessInfo', {})
     viewability = access_info.get('viewability')
     page_count = book_info.get('pageCount', 0)
 

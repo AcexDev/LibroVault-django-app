@@ -1,11 +1,8 @@
 # Users Views
+import logging
+
 from django.contrib.auth.models import User
-from django.contrib.auth.tokens import default_token_generator
-from django.core.mail import send_mail
-from django.conf import settings
 from django.db import IntegrityError
-from django.utils.encoding import force_bytes
-from django.utils.http import urlsafe_base64_encode
 from rest_framework import generics, status
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
@@ -14,6 +11,7 @@ from rest_framework_simplejwt.exceptions import TokenError
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenObtainPairView
 
+from .tasks import send_password_reset_email
 from .serializers import (
     LoginSerializer,
     LogoutSerializer,
@@ -23,6 +21,8 @@ from .serializers import (
     UserSerializer,
     UserUpdateSerializer,
 )
+
+logger = logging.getLogger(__name__)
 
 
 class RegisterView(generics.CreateAPIView):
@@ -115,21 +115,11 @@ class PasswordResetView(APIView):
 
         user = User.objects.filter(email__iexact=email).first()
         if user:
-            uid = urlsafe_base64_encode(force_bytes(user.pk))
-            token = default_token_generator.make_token(user)
-            reset_url = f"{settings.FRONTEND_URL}/reset-password/{uid}/{token}"
-            send_mail(
-                subject="LibroVault password reset",
-                message=(
-                    f"Hi {user.username},\n\n"
-                    "Use the link below to choose a new password:\n\n"
-                    f"{reset_url}\n\n"
-                    "If you did not request this, you can ignore this email."
-                ),
-                from_email=settings.DEFAULT_FROM_EMAIL,
-                recipient_list=[user.email],
-                fail_silently=False,
-            )
+            try:
+                send_password_reset_email.delay(user.pk)
+            except Exception:
+                # Keep the response identical for known and unknown addresses.
+                logger.exception("Could not queue password reset email.")
 
         return Response(
             {'detail': "If that email is registered, a reset link has been sent."},
