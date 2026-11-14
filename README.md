@@ -22,8 +22,10 @@ JSON in, JSON out — bring your own frontend.
 ## Tech Stack
 
 - **Backend** — Django 6 + Django REST Framework
+- **Frontend** — React + Vite, maintained as a separate app under `frontend/`
 - **Auth** — `djangorestframework-simplejwt` (access/refresh tokens, refresh rotation + blacklist)
 - **Database** — PostgreSQL (SQLite available locally via `USE_SQLITE=1`)
+- **Cache and workers** — Redis + Celery (in-memory cache and eager tasks for simple local runs)
 - **External API** — Google Books API
 - **Media storage** — Cloudinary (profile pictures, with auto-crop and face detection)
 - **CORS** — `django-cors-headers`
@@ -38,8 +40,13 @@ JSON in, JSON out — bring your own frontend.
 
 ```
 django_practice/
+├── frontend/                # Separate React app that consumes the API
+│   ├── src/
+│   ├── package.json
+│   └── vite.config.js
 ├── bookcollection/          # Django project config
 │   ├── settings.py          # DRF, SimpleJWT, CORS config
+│   ├── celery.py            # Celery app and task discovery
 │   ├── urls.py              # /admin/, /api/ + API root index
 │   ├── asgi.py
 │   └── wsgi.py
@@ -53,6 +60,7 @@ django_practice/
 │   └── tests.py
 ├── users/                   # Auth + user data
 │   ├── models.py            # Profile, UserBook, UserFollow
+│   ├── tasks.py             # Background email delivery
 │   ├── serializers.py
 │   ├── views.py             # register, JWT login/logout, me, password reset
 │   ├── urls.py
@@ -121,7 +129,41 @@ python manage.py createsuperuser
 python manage.py runserver
 ```
 
+In a second terminal, start the frontend:
+
+```bash
+cd frontend
+cp .env.example .env
+npm install
+npm run dev
+```
+
+The frontend runs at `http://localhost:3000` and calls the backend at
+`http://localhost:8000/api`. Make sure `CORS_ALLOWED_ORIGINS` in the backend
+environment includes `http://localhost:3000`.
+
 `GET /api/` returns an index of the entry points. With `DEBUG=True` the DRF browsable API is available in a browser, and `/api-auth/login/` gives you a session for it.
+
+### Redis and background workers
+
+Google Books search responses are cached for 15 minutes by default. Password
+reset emails run as Celery tasks. A basic local run uses in-memory caching and
+synchronous tasks; set `REDIS_URL` and `CELERY_BROKER_URL` to use Redis.
+
+For a local Redis, API, and worker stack, copy `.env.example` to `.env`, fill in
+the required values, then run:
+
+```bash
+docker compose up --build
+```
+
+The API is served at `http://localhost:8000`; the worker consumes queued email
+tasks. In production, set `REDIS_URL` and `CELERY_BROKER_URL` to your Redis
+service and run a Celery worker alongside the Django web process:
+
+```bash
+celery -A bookcollection worker --loglevel=info
+```
 
 Interactive API documentation is available at `/api/docs/` (Swagger UI), with
 the OpenAPI schema at `/api/schema/` and ReDoc at `/api/redoc/`. In Swagger UI,

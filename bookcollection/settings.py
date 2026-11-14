@@ -18,6 +18,14 @@ GOOGLE_API_KEY = os.environ.get('GOOGLE_API_KEY')
 if not GOOGLE_API_KEY:
     raise ValueError("GOOGLE_BOOKS_API not set")
 
+REDIS_URL = os.environ.get("REDIS_URL")
+CELERY_TASK_IGNORE_RESULT = True
+CELERY_TASK_SERIALIZER = "json"
+CELERY_ACCEPT_CONTENT = ["json"]
+CELERY_TIMEZONE = "Africa/Lagos"
+
+GOOGLE_BOOKS_CACHE_TTL = int(os.environ.get("GOOGLE_BOOKS_CACHE_TTL", "900"))
+
 cloudinary_name = os.environ.get("CLOUDINARY_CLOUD_NAME")
 cloudinary_api_key = os.environ.get("CLOUDINARY_API_KEY")
 cloudinary_secret_key = os.environ.get("CLOUDINARY_API_SECRET")
@@ -31,8 +39,18 @@ SECRET_KEY = os.getenv('SECRET_KEY')
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.environ.get("DEBUG", "True").lower() == "true"
+CELERY_BROKER_URL = os.environ.get("CELERY_BROKER_URL")
+if not CELERY_BROKER_URL:
+    if DEBUG:
+        CELERY_BROKER_URL = "redis://127.0.0.1:6379/1"
+    else:
+        raise ValueError("CELERY_BROKER_URL must be set when DEBUG is False")
 
-ALLOWED_HOSTS = os.environ.get("ALLOWED_HOSTS", "localhost 127.0.0.1").split(" ")
+CELERY_TASK_ALWAYS_EAGER = os.environ.get(
+    "CELERY_TASK_ALWAYS_EAGER", "True" if DEBUG else "False"
+).lower() == "true"
+
+ALLOWED_HOSTS = os.environ.get("ALLOWED_HOSTS", "localhost 127.0.0.1").split()
 
 # Base URL of the frontend that consumes this API. Used to build the link that
 # goes out in the password reset email.
@@ -96,6 +114,24 @@ SPECTACULAR_SETTINGS = {
         'persistAuthorization': True,
     },
 }
+
+if REDIS_URL:
+    CACHES = {
+        "default": {
+            "BACKEND": "django.core.cache.backends.redis.RedisCache",
+            "LOCATION": REDIS_URL,
+            "TIMEOUT": 300,
+        }
+    }
+else:
+    # Keep a lightweight cache for local development without Redis.
+    CACHES = {
+        "default": {
+            "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+            "LOCATION": "librovault-local",
+            "TIMEOUT": 300,
+        }
+    }
 
 SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(minutes=60),

@@ -1,4 +1,9 @@
 # Library Views
+import hashlib
+import logging
+
+from django.conf import settings
+from django.core.cache import cache
 from django.db.models import Count
 from django.shortcuts import get_object_or_404
 from rest_framework import mixins, status, viewsets
@@ -24,6 +29,7 @@ from .serializers import (
 from .utils import fetch_results, query_input, save_book
 
 PAGE_SIZE = 40  # Google Books results per request
+logger = logging.getLogger(__name__)
 
 
 class InUserLibrary(BasePermission):
@@ -106,7 +112,27 @@ class BookViewSet(mixins.ListModelMixin,
         if query_params:
             query_params["startIndex"] = start_index
 
-        books = fetch_results(query, query_params) if query else []
+        books = []
+        if query:
+            cache_input = f"{query.strip().casefold()}:{start_index}"
+            cache_key = "google-books-search:v2:" + hashlib.sha256(
+                cache_input.encode("utf-8")
+            ).hexdigest()
+            try:
+                books = cache.get(cache_key)
+            except Exception:
+                logger.warning("Google Books cache read failed.", exc_info=True)
+                books = None
+            if books is None:
+                books = fetch_results(query, query_params)
+                try:
+                    cache.set(
+                        cache_key,
+                        books,
+                        timeout=settings.GOOGLE_BOOKS_CACHE_TTL,
+                    )
+                except Exception:
+                    logger.warning("Google Books cache write failed.", exc_info=True)
 
         return Response({
             'query': query,
