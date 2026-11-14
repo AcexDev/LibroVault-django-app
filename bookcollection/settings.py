@@ -50,15 +50,19 @@ CELERY_TASK_ALWAYS_EAGER = os.environ.get(
     "CELERY_TASK_ALWAYS_EAGER", "True" if DEBUG else "False"
 ).lower() == "true"
 
-ALLOWED_HOSTS = os.environ.get("ALLOWED_HOSTS", "localhost 127.0.0.1").split()
+# ALLOWED_HOSTS = os.environ.get("ALLOWED_HOSTS", "localhost 127.0.0.1").split()
+ALLOWED_HOSTS = ["*"]
 
 # Base URL of the frontend that consumes this API. Used to build the link that
 # goes out in the password reset email.
 FRONTEND_URL = os.environ.get("FRONTEND_URL", "http://localhost:3000").rstrip("/")
 
 AUTHENTICATION_BACKENDS = [
-    'users.backends.EmailOrUsernameBackend',
+    'django.contrib.auth.backends.ModelBackend',
 ]
+
+AUTH_USER_MODEL = 'users.Account'
+GOOGLE_OAUTH_CLIENT_ID = os.environ.get('GOOGLE_OAUTH_CLIENT_ID', '')
 
 
 # Application definition

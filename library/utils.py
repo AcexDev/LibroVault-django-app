@@ -1,10 +1,12 @@
 # Library Utils
 import requests
-from django.contrib.auth.models import User
+from django.contrib.auth import get_user_model
 
 from library.models import Book, BookLink
 from users.models import UserBook
 from bookcollection.settings import GOOGLE_API_KEY
+
+User = get_user_model()
 
 endpoint = "https://www.googleapis.com/books/v1/volumes"
 api_key = GOOGLE_API_KEY

@@ -1,5 +1,5 @@
 # Users Serializers
-from django.contrib.auth.models import User
+from django.contrib.auth import get_user_model
 from django.contrib.auth.password_validation import validate_password
 from django.contrib.auth.tokens import default_token_generator
 from django.core.exceptions import ValidationError as DjangoValidationError
@@ -9,6 +9,8 @@ from rest_framework import serializers
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
 from .models import Profile
+
+User = get_user_model()
 
 
 class ProfileSerializer(serializers.ModelSerializer):
@@ -37,7 +39,7 @@ class UserSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ['id', 'username', 'email', 'date_joined', 'profile']
+        fields = ['id', 'email', 'first_name', 'last_name', 'date_joined', 'profile']
         read_only_fields = fields
 
 
@@ -48,12 +50,12 @@ class RegisterSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ['username', 'email', 'password', 'password2']
+        fields = ['email', 'first_name', 'last_name', 'password', 'password2']
 
     def validate_email(self, value):
         if User.objects.filter(email__iexact=value).exists():
             raise serializers.ValidationError("Email Already registered with different user")
-        return value
+        return value.strip().lower()
 
     def validate(self, attrs):
         if attrs['password'] != attrs['password2']:
@@ -66,7 +68,7 @@ class RegisterSerializer(serializers.ModelSerializer):
 
 
 class LoginSerializer(TokenObtainPairSerializer):
-    """Username + password, and returns the user alongside the token pair."""
+    """Email + password, and returns the user alongside the token pair."""
 
     def validate(self, attrs):
         data = super().validate(attrs)
@@ -80,31 +82,23 @@ class LogoutSerializer(serializers.Serializer):
 
 class UserUpdateSerializer(serializers.ModelSerializer):
     """
-    Replaces UserUpdateForm + ProfileUpdateForm. Every field is optional, so a
-    PATCH with just `bio` leaves username and email alone.
+    Update email, personal name, and profile fields independently.
     """
 
-    username = serializers.CharField(required=False)
     email = serializers.EmailField(required=False)
+    first_name = serializers.CharField(required=False, allow_blank=True, max_length=150)
+    last_name = serializers.CharField(required=False, allow_blank=True, max_length=150)
     bio = serializers.CharField(required=False, allow_blank=True, max_length=100)
     image = serializers.ImageField(required=False, write_only=True)
 
     class Meta:
         model = User
-        fields = ['username', 'email', 'bio', 'image']
-
-    def validate_username(self, value):
-        if not value:
-            return self.instance.username
-        if User.objects.filter(username=value).exclude(pk=self.instance.pk).exists():
-            raise serializers.ValidationError("This Username is Already Taken")
-        return value
+        fields = ['email', 'first_name', 'last_name', 'bio', 'image']
 
     def validate_email(self, value):
-        if not value:
-            return self.instance.email
-        if User.objects.filter(email=value).exclude(pk=self.instance.pk).exists():
-            raise serializers.ValidationError("Email Already registered with different user")
+        value = value.strip().lower()
+        if User.objects.filter(email__iexact=value).exclude(pk=self.instance.pk).exists():
+            raise serializers.ValidationError("Email already registered with another account")
         return value
 
     def update(self, instance, validated_data):

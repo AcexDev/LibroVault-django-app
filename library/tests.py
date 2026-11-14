@@ -1,10 +1,12 @@
 # Library API Tests
 from unittest.mock import patch
 
-from django.contrib.auth.models import User
+from django.contrib.auth import get_user_model
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase
+
+User = get_user_model()
 
 from library.models import Book, BookLink
 from users.models import UserBook
@@ -26,7 +28,7 @@ def make_book(**overrides):
 
 class BookCatalogueTests(APITestCase):
     def setUp(self):
-        self.user = User.objects.create_user('ada', 'ada@example.com', 'pw')
+        self.user = User.objects.create_user(email='ada@example.com', password='pw')
         self.book = make_book()
 
     def test_list_is_public(self):
@@ -79,7 +81,7 @@ class BookCatalogueTests(APITestCase):
 
 class ManualBookCreateTests(APITestCase):
     def setUp(self):
-        self.user = User.objects.create_user('ada', 'ada@example.com', 'pw')
+        self.user = User.objects.create_user(email='ada@example.com', password='pw')
         self.client.force_authenticate(user=self.user)
 
     def test_creates_book_and_library_entry(self):
@@ -128,7 +130,7 @@ class ManualBookCreateTests(APITestCase):
 
 class BookUpdateTests(APITestCase):
     def setUp(self):
-        self.user = User.objects.create_user('ada', 'ada@example.com', 'pw')
+        self.user = User.objects.create_user(email='ada@example.com', password='pw')
         self.client.force_authenticate(user=self.user)
 
     def test_external_book_only_accepts_status(self):
@@ -171,8 +173,8 @@ class BookUpdateTests(APITestCase):
 
 class LibraryTests(APITestCase):
     def setUp(self):
-        self.user = User.objects.create_user('ada', 'ada@example.com', 'pw')
-        self.other = User.objects.create_user('grace', 'grace@example.com', 'pw')
+        self.user = User.objects.create_user(email='ada@example.com', password='pw')
+        self.other = User.objects.create_user(email='grace@example.com', password='pw')
         self.client.force_authenticate(user=self.user)
 
         self.dune = make_book()
@@ -249,7 +251,7 @@ class LibraryTests(APITestCase):
 
 class ReadingProgressTests(APITestCase):
     def setUp(self):
-        self.user = User.objects.create_user('ada', 'ada@example.com', 'pw')
+        self.user = User.objects.create_user(email='ada@example.com', password='pw')
         self.client.force_authenticate(user=self.user)
         self.book = make_book(page_count=400)
         self.entry = UserBook.objects.create(user=self.user, book=self.book, status='wishlist')
@@ -359,7 +361,7 @@ class SearchTests(APITestCase):
 
 class AddExternalBookTests(APITestCase):
     def setUp(self):
-        self.user = User.objects.create_user('ada', 'ada@example.com', 'pw')
+        self.user = User.objects.create_user(email='ada@example.com', password='pw')
         self.client.force_authenticate(user=self.user)
         self.payload = {
             'google_id': 'abc123',
@@ -393,7 +395,7 @@ class AddExternalBookTests(APITestCase):
     def test_second_user_reuses_the_same_book(self):
         self.client.post(reverse('book-add'), self.payload)
 
-        grace = User.objects.create_user('grace', 'grace@example.com', 'pw')
+        grace = User.objects.create_user(email='grace@example.com', password='pw')
         self.client.force_authenticate(user=grace)
         self.client.post(reverse('book-add'), self.payload)
 
@@ -429,7 +431,7 @@ class AddExternalBookTests(APITestCase):
 
 class DashboardTests(APITestCase):
     def setUp(self):
-        self.user = User.objects.create_user('ada', 'ada@example.com', 'pw')
+        self.user = User.objects.create_user(email='ada@example.com', password='pw')
         self.client.force_authenticate(user=self.user)
 
         dune = make_book()
@@ -458,5 +460,5 @@ class APIIndexTests(APITestCase):
     def test_root_is_public_and_lists_sections(self):
         response = self.client.get(reverse('api-root'))
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(set(response.data), {'auth', 'books', 'library'})
+        self.assertEqual(set(response.data), {'auth', 'books', 'library', 'documentation'})
         self.assertTrue(response.data['books']['search'].endswith('/api/books/search/'))

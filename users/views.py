@@ -1,7 +1,7 @@
 # Users Views
 import logging
 
-from django.contrib.auth.models import User
+from django.contrib.auth import get_user_model
 from django.db import IntegrityError
 from rest_framework import generics, status
 from rest_framework.permissions import AllowAny, IsAuthenticated
@@ -21,8 +21,11 @@ from .serializers import (
     UserSerializer,
     UserUpdateSerializer,
 )
+from .social_auth import get_social_profile
+from .models import SocialIdentity
 
 logger = logging.getLogger(__name__)
+User = get_user_model()
 
 
 class RegisterView(generics.CreateAPIView):
@@ -36,7 +39,7 @@ class RegisterView(generics.CreateAPIView):
         user = serializer.save()
         return Response(
             {
-                'detail': f"Account successfully created for {user.username}!",
+                'detail': "Account successfully created.",
                 'user': UserSerializer(user, context={'request': request}).data,
             },
             status=status.HTTP_201_CREATED,
@@ -44,7 +47,7 @@ class RegisterView(generics.CreateAPIView):
 
 
 class LoginView(TokenObtainPairView):
-    """Exchanges username + password for an access/refresh token pair."""
+    """Exchanges email + password for an access/refresh token pair."""
 
     serializer_class = LoginSerializer
     permission_classes = [AllowAny]
@@ -71,7 +74,7 @@ class LogoutView(APIView):
 class CurrentUserView(generics.RetrieveUpdateAPIView):
     """
     GET  -> the signed-in user with their profile
-    PATCH-> update username / email / bio / avatar
+    PATCH-> update email / name / bio / avatar
     """
 
     permission_classes = [IsAuthenticated]
@@ -89,7 +92,7 @@ class CurrentUserView(generics.RetrieveUpdateAPIView):
             response = super().update(request, *args, **kwargs)
         except IntegrityError:
             return Response(
-                {'detail': "Username already taken"},
+                {'detail': "An account with that email already exists."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
         response.data = {
@@ -139,3 +142,73 @@ class PasswordResetConfirmView(APIView):
             {'detail': "Password has been reset. You can now log in."},
             status=status.HTTP_200_OK,
         )
+
+
+class SocialLoginView(APIView):
+    """Verify Google or GitHub credentials and issue this API's JWT pair."""
+
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        provider = str(request.data.get('provider', '')).strip().lower()
+        token = request.data.get('token')
+        if provider not in {'google', 'github'} or not isinstance(token, str) or not token:
+            return Response(
+                {'detail': "Provide provider ('google' or 'github') and token."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            profile = get_social_profile(provider, token)
+        except ValueError as exc:
+            return Response({'detail': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception:
+            logger.exception("Social authentication failed for %s", provider)
+            return Response({'detail': "Could not verify social login."}, status=status.HTTP_400_BAD_REQUEST)
+
+        identity = SocialIdentity.objects.select_related('user').filter(
+            provider=provider, provider_uid=profile['uid']
+        ).first()
+        if identity:
+            user = identity.user
+        else:
+            email = profile['email'].strip().lower()
+            user = User.objects.filter(email__iexact=email).first()
+            if user is None:
+                user = User.objects.create_user(
+                    email=email,
+                    first_name=profile.get('first_name', ''),
+                    last_name=profile.get('last_name', ''),
+                    password=None,
+                )
+            elif not user.is_active:
+                return Response({'detail': "This account is inactive."}, status=status.HTTP_403_FORBIDDEN)
+
+            try:
+                SocialIdentity.objects.create(
+                    user=user,
+                    provider=provider,
+                    provider_uid=profile['uid'],
+                    email=email,
+                    extra_data=profile.get('extra_data', {}),
+                )
+            except IntegrityError:
+                identity = SocialIdentity.objects.select_related('user').filter(
+                    provider=provider, provider_uid=profile['uid']
+                ).first()
+                if identity is None:
+                    return Response(
+                        {'detail': "This social provider is already linked to another account."},
+                        status=status.HTTP_409_CONFLICT,
+                    )
+                user = identity.user
+
+        if not user.is_active:
+            return Response({'detail': "This account is inactive."}, status=status.HTTP_403_FORBIDDEN)
+
+        refresh = RefreshToken.for_user(user)
+        return Response({
+            'refresh': str(refresh),
+            'access': str(refresh.access_token),
+            'user': UserSerializer(user, context={'request': request}).data,
+        })

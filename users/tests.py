@@ -1,14 +1,15 @@
 # Users API Tests
-from django.contrib.auth.models import User
+from django.contrib.auth import get_user_model
 from django.core import mail
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase
 
+User = get_user_model()
+
 
 class RegisterTests(APITestCase):
     payload = {
-        'username': 'ada',
         'email': 'ada@example.com',
         'password': 'sup3r-s3cret-pw',
         'password2': 'sup3r-s3cret-pw',
@@ -17,12 +18,12 @@ class RegisterTests(APITestCase):
     def test_creates_user(self):
         response = self.client.post(reverse('register'), self.payload)
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-        self.assertEqual(response.data['user']['username'], 'ada')
-        self.assertTrue(User.objects.filter(username='ada').exists())
+        self.assertEqual(response.data['user']['email'], 'ada@example.com')
+        self.assertTrue(User.objects.filter(email='ada@example.com').exists())
 
     def test_profile_created_by_signal(self):
         self.client.post(reverse('register'), self.payload)
-        self.assertIsNotNone(User.objects.get(username='ada').profile)
+        self.assertIsNotNone(User.objects.get(email='ada@example.com').profile)
 
     def test_rejects_mismatched_passwords(self):
         response = self.client.post(
@@ -32,7 +33,7 @@ class RegisterTests(APITestCase):
         self.assertIn('password2', response.data)
 
     def test_rejects_duplicate_email(self):
-        User.objects.create_user('grace', 'ada@example.com', 'pw')
+        User.objects.create_user(email='ada@example.com', password='pw')
         response = self.client.post(reverse('register'), self.payload)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn('email', response.data)
@@ -40,11 +41,11 @@ class RegisterTests(APITestCase):
 
 class AuthFlowTests(APITestCase):
     def setUp(self):
-        self.user = User.objects.create_user('ada', 'ada@example.com', 'sup3r-s3cret-pw')
+        self.user = User.objects.create_user(email='ada@example.com', password='sup3r-s3cret-pw')
 
     def login(self):
         return self.client.post(
-            reverse('login'), {'username': 'ada', 'password': 'sup3r-s3cret-pw'}
+            reverse('login'), {'email': 'ada@example.com', 'password': 'sup3r-s3cret-pw'}
         )
 
     def test_login_returns_token_pair_and_user(self):
@@ -52,11 +53,11 @@ class AuthFlowTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertIn('access', response.data)
         self.assertIn('refresh', response.data)
-        self.assertEqual(response.data['user']['username'], 'ada')
+        self.assertEqual(response.data['user']['email'], 'ada@example.com')
 
     def test_login_rejects_bad_password(self):
         response = self.client.post(
-            reverse('login'), {'username': 'ada', 'password': 'wrong'}
+            reverse('login'), {'email': 'ada@example.com', 'password': 'wrong'}
         )
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
@@ -65,7 +66,7 @@ class AuthFlowTests(APITestCase):
         self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {token}')
         response = self.client.get(reverse('current-user'))
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(response.data['username'], 'ada')
+        self.assertEqual(response.data['email'], 'ada@example.com')
 
     def test_logout_blacklists_refresh_token(self):
         tokens = self.login().data
@@ -84,34 +85,28 @@ class AuthFlowTests(APITestCase):
 
 class ProfileUpdateTests(APITestCase):
     def setUp(self):
-        self.user = User.objects.create_user('ada', 'ada@example.com', 'pw')
+        self.user = User.objects.create_user(email='ada@example.com', password='pw')
         self.client.force_authenticate(user=self.user)
 
-    def test_updates_bio_without_touching_username(self):
+    def test_updates_bio_without_touching_account_email(self):
         response = self.client.patch(reverse('current-user'), {'bio': 'Reads a lot'})
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.user.refresh_from_db()
-        self.assertEqual(self.user.username, 'ada')
+        self.assertEqual(self.user.email, 'ada@example.com')
         self.assertEqual(self.user.profile.bio, 'Reads a lot')
 
-    def test_updates_username_and_email(self):
+    def test_updates_email_and_name(self):
         response = self.client.patch(reverse('current-user'), {
-            'username': 'ada-l',
             'email': 'ada.l@example.com',
+            'first_name': 'Ada',
         })
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.user.refresh_from_db()
-        self.assertEqual(self.user.username, 'ada-l')
         self.assertEqual(self.user.email, 'ada.l@example.com')
-
-    def test_rejects_taken_username(self):
-        User.objects.create_user('grace', 'grace@example.com', 'pw')
-        response = self.client.patch(reverse('current-user'), {'username': 'grace'})
-        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertIn('username', response.data)
+        self.assertEqual(self.user.first_name, 'Ada')
 
     def test_rejects_taken_email(self):
-        User.objects.create_user('grace', 'grace@example.com', 'pw')
+        User.objects.create_user(email='grace@example.com', password='pw')
         response = self.client.patch(reverse('current-user'), {'email': 'grace@example.com'})
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn('email', response.data)
@@ -119,7 +114,7 @@ class ProfileUpdateTests(APITestCase):
 
 class PasswordResetTests(APITestCase):
     def setUp(self):
-        self.user = User.objects.create_user('ada', 'ada@example.com', 'old-password-123')
+        self.user = User.objects.create_user(email='ada@example.com', password='old-password-123')
 
     def test_sends_email_for_known_address(self):
         response = self.client.post(reverse('password-reset'), {'email': 'ada@example.com'})

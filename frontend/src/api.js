@@ -67,11 +67,11 @@ export async function api(path, options = {}) {
   return parseResponse(response)
 }
 
-export async function signIn(username, password) {
+export async function signIn(email, password) {
   const response = await api('/auth/login/', {
     auth: false,
     method: 'POST',
-    body: JSON.stringify({ username, password }),
+    body: JSON.stringify({ email, password }),
   })
   saveSession(response)
   return response
@@ -83,6 +83,16 @@ export async function signUp(values) {
     method: 'POST',
     body: JSON.stringify(values),
   })
+}
+
+export async function signInWithSocial(provider, token) {
+  const response = await api('/auth/social/', {
+    auth: false,
+    method: 'POST',
+    body: JSON.stringify({ provider, token }),
+  })
+  saveSession(response)
+  return response
 }
 
 export async function signOut() {

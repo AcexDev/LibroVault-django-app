@@ -20,6 +20,7 @@ def api_root(request):
         'auth': {
             'register': reverse('register', request=request),
             'login': reverse('login', request=request),
+            'social_login': reverse('social-login', request=request),
             'refresh': reverse('token-refresh', request=request),
             'logout': reverse('logout', request=request),
             'me': reverse('current-user', request=request),

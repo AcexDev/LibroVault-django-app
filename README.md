@@ -13,8 +13,8 @@ JSON in, JSON out — bring your own frontend.
 - **Reading tracker** — log pages read; status auto-updates to `completed` when you finish
 - **Library management** — filter your collection by status (`reading`, `completed`, `wishlist`), sort by title or date added, and toggle favourites
 - **Popular books** — see which books other users have added most
-- **User profiles** — profile picture (Cloudinary), bio, update username/email
-- **Auth** — JWT register / login / refresh / logout, plus password reset by email
+- **User profiles** — profile picture (Cloudinary), bio, and email-based accounts
+- **Auth** — JWT email/password login, Google and GitHub social login, plus password reset by email
 - **Source-aware updates** — Google Books entries only expose `status` for editing; manual entries expose the full field set
 
 ---
@@ -142,6 +142,12 @@ The frontend runs at `http://localhost:3000` and calls the backend at
 `http://localhost:8000/api`. Make sure `CORS_ALLOWED_ORIGINS` in the backend
 environment includes `http://localhost:3000`.
 
+To enable Google sign-in, set `GOOGLE_OAUTH_CLIENT_ID` in the backend `.env`
+and the same value as `VITE_GOOGLE_CLIENT_ID` in `frontend/.env`. The Google
+Identity Services web client must allow the frontend's origin. GitHub sign-in
+is available through `POST /api/auth/social/` using a GitHub OAuth access token
+with `read:user` and `user:email` scopes.
+
 `GET /api/` returns an index of the entry points. With `DEBUG=True` the DRF browsable API is available in a browser, and `/api-auth/login/` gives you a session for it.
 
 ### Redis and background workers
@@ -186,7 +192,7 @@ All endpoints require a bearer token except registration, login, token refresh, 
 # 1. Get a token pair
 curl -X POST http://localhost:8000/api/auth/login/ \
   -H 'Content-Type: application/json' \
-  -d '{"username": "ada", "password": "your-password"}'
+  -d '{"email": "ada@example.com", "password": "your-password"}'
 
 # 2. Send the access token on subsequent requests
 curl http://localhost:8000/api/dashboard/ \
@@ -203,13 +209,14 @@ Access tokens last 60 minutes, refresh tokens 7 days. Refreshing rotates the ref
 
 | Method | URL | Body | Description |
 |--------|-----|------|-------------|
-| POST | `register/` | `username`, `email`, `password`, `password2` | Create an account |
-| POST | `login/` | `username`, `password` | Access + refresh tokens and the user |
+| POST | `register/` | `email`, `password`, `password2`, optional `first_name`, `last_name` | Create an account |
+| POST | `login/` | `email`, `password` | Access + refresh tokens and the user |
+| POST | `social/` | `provider`, `token` | Sign in with a Google ID token or GitHub access token |
 | POST | `refresh/` | `refresh` | New access token |
 | POST | `verify/` | `token` | Check a token is valid |
 | POST | `logout/` | `refresh` | Blacklist a refresh token |
 | GET | `me/` | — | Signed-in user with profile |
-| PATCH | `me/` | `username`, `email`, `bio`, `image` | Update account and profile (all optional) |
+| PATCH | `me/` | `email`, `first_name`, `last_name`, `bio`, `image` | Update account and profile (all optional) |
 | POST | `password-reset/` | `email` | Email a reset link to `FRONTEND_URL/reset-password/<uid>/<token>` |
 | POST | `password-reset/confirm/` | `uid`, `token`, `new_password` | Set a new password |
 
