@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { api, clearSession, readSession, saveSession, signIn, signOut, signUp } from './api.js'
+import { api, clearSession, readSession, saveSession, signIn, signInWithSocial, signOut, signUp } from './api.js'
 
 const Icon = ({ name, size = 20 }) => {
   const paths = {
@@ -28,9 +28,45 @@ function Cover({ src, title, className = '' }) {
 
 function AuthScreen({ onAuthenticated }) {
   const [mode, setMode] = useState('login')
-  const [form, setForm] = useState({ username: '', email: '', password: '', password2: '' })
+  const [form, setForm] = useState({ email: '', password: '', password2: '' })
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
+
+  useEffect(() => {
+    const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID
+    if (!clientId) return
+
+    const renderGoogleButton = () => {
+      if (!window.google?.accounts?.id) return
+      window.google.accounts.id.initialize({
+        client_id: clientId,
+        callback: async ({ credential }) => {
+          setError('')
+          setBusy(true)
+          try {
+            onAuthenticated(await signInWithSocial('google', credential))
+          } catch (err) {
+            setError(err.message)
+          } finally {
+            setBusy(false)
+          }
+        },
+      })
+      const button = document.getElementById('google-sign-in-button')
+      if (button) window.google.accounts.id.renderButton(button, { theme: 'outline', size: 'large', text: 'continue_with', width: 320 })
+    }
+
+    if (window.google?.accounts?.id) {
+      renderGoogleButton()
+      return
+    }
+    const script = document.createElement('script')
+    script.src = 'https://accounts.google.com/gsi/client'
+    script.async = true
+    script.defer = true
+    script.onload = renderGoogleButton
+    document.head.appendChild(script)
+  }, [onAuthenticated])
 
   const update = (key) => (event) => setForm((current) => ({ ...current, [key]: event.target.value }))
   const submit = async (event) => {
@@ -39,7 +75,7 @@ function AuthScreen({ onAuthenticated }) {
     setBusy(true)
     try {
       if (mode === 'register') await signUp(form)
-      const session = await signIn(form.username, form.password)
+      const session = await signIn(form.email, form.password)
       onAuthenticated(session)
     } catch (err) {
       setError(err.message)
@@ -66,13 +102,13 @@ function AuthScreen({ onAuthenticated }) {
         <h2>{mode === 'login' ? 'Sign in to your library' : 'Create your account'}</h2>
         <p className="auth-subtitle">{mode === 'login' ? 'Pick up right where you left off.' : 'A little space for all the books ahead.'}</p>
         <form onSubmit={submit} className="auth-form">
-          <label>Username<input autoComplete="username" value={form.username} onChange={update('username')} required placeholder="Your username" /></label>
-          {mode === 'register' && <label>Email address<input type="email" autoComplete="email" value={form.email} onChange={update('email')} required placeholder="you@example.com" /></label>}
+          <label>Email address<input type="email" autoComplete="email" value={form.email} onChange={update('email')} required placeholder="you@example.com" /></label>
           <label>Password<input type="password" autoComplete={mode === 'login' ? 'current-password' : 'new-password'} value={form.password} onChange={update('password')} required placeholder="••••••••••" /></label>
           {mode === 'register' && <label>Confirm password<input type="password" autoComplete="new-password" value={form.password2} onChange={update('password2')} required placeholder="Repeat your password" /></label>}
           {error && <p className="form-error" role="alert">{error}</p>}
           <button className="button button-dark auth-submit" disabled={busy}>{busy ? 'One moment…' : mode === 'login' ? 'Open my library' : 'Create account'}<Icon name="arrow" size={18}/></button>
         </form>
+        {import.meta.env.VITE_GOOGLE_CLIENT_ID && <div className="social-login"><span>or continue with</span><div id="google-sign-in-button" /></div>}
         <p className="auth-switch">{mode === 'login' ? 'New to LibroVault?' : 'Already have an account?'} <button onClick={() => { setMode(mode === 'login' ? 'register' : 'login'); setError('') }}>{mode === 'login' ? 'Create an account' : 'Sign in'}</button></p>
       </div>
       <p className="auth-footnote">A good book always leaves the light on.</p>
@@ -438,7 +474,7 @@ function App() {
       </nav>
       <div className="sidebar-bottom">
         <div className="sidebar-quote"><span>“</span><p>Books are a uniquely portable magic.</p><small>— Stephen King</small></div>
-        <button className="profile-chip" onClick={handleSignOut}><span className="avatar">{session.user?.username?.slice(0, 1)?.toUpperCase() || 'R'}</span><span className="profile-copy"><strong>{session.user?.username || 'Reader'}</strong><small>Personal library</small></span><span className="signout-icon"><Icon name="logout" size={17}/></span></button>
+        <button className="profile-chip" onClick={handleSignOut}><span className="avatar">{(session.user?.first_name || session.user?.email || 'R').slice(0, 1).toUpperCase()}</span><span className="profile-copy"><strong>{session.user?.first_name || session.user?.email || 'Reader'}</strong><small>Personal library</small></span><span className="signout-icon"><Icon name="logout" size={17}/></span></button>
       </div>
     </aside>
 
@@ -446,7 +482,7 @@ function App() {
       <header className="topbar"><div className="breadcrumbs">Your reading life <span>/</span> <strong>{nav.find((item) => item.id === page)?.label}</strong></div><div className="topbar-actions"><span className="today-date">{new Date().toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}</span><button className="button button-dark button-add" onClick={() => changePage('search')}><Icon name="plus" size={17}/> Find a book</button></div></header>
       {error && <div className="global-error" role="alert">{error}<button onClick={() => setError('')}><Icon name="close" size={16}/></button></div>}
       {page === 'home' && <section className="page-content">
-        <div className="welcome-panel"><div className="welcome-copy"><p className="eyebrow">Your reading room</p><h1>{greeting}, {session.user?.username || 'reader'}.</h1><p>Every book you make time for is a small gift to yourself.</p><button className="button button-light" onClick={() => changePage('search')}>Find something to read <Icon name="arrow" size={17}/></button></div><div className="welcome-art" aria-hidden="true"><div className="sun-disc"/><div className="art-book book-one"/><div className="art-book book-two"/><div className="art-book book-three"/><span className="art-spark">✳</span></div></div>
+        <div className="welcome-panel"><div className="welcome-copy"><p className="eyebrow">Your reading room</p><h1>{greeting}, {session.user?.first_name || session.user?.email?.split('@')[0] || 'reader'}.</h1><p>Every book you make time for is a small gift to yourself.</p><button className="button button-light" onClick={() => changePage('search')}>Find something to read <Icon name="arrow" size={17}/></button></div><div className="welcome-art" aria-hidden="true"><div className="sun-disc"/><div className="art-book book-one"/><div className="art-book book-two"/><div className="art-book book-three"/><span className="art-spark">✳</span></div></div>
         <div className="stats-grid"><StatCard label="Books collected" value={dashboard?.book_count ?? 0} icon="books" tone="sage"/><StatCard label="Currently reading" value={dashboard?.reading_count ?? 0} icon="clock" tone="sand"/><StatCard label="Favorites" value={dashboard?.favourites_count ?? 0} icon="heart" tone="rose"/></div>
         <section className="content-section"><div className="section-heading"><div><p className="eyebrow">A little progress adds up</p><h2>Your recent reads</h2></div><button className="text-link" onClick={() => changePage('library')}>See your library <Icon name="arrow" size={16}/></button></div>
           {loading && !dashboard ? <div className="loading-state"><span className="spinner"/>Opening your shelves…</div> : dashboard?.books?.length ? <div className="book-grid">{dashboard.books.slice(0, 3).map((entry) => <BookCard key={entry.id} entry={entry} onOpen={openBook}/>)}</div> : <div className="empty-panel"><span className="empty-icon"><Icon name="library" size={28}/></span><h3>Your shelves are waiting</h3><p>Search for a book you love and add it to your library.</p><button className="button button-outline" onClick={() => changePage('search')}><Icon name="plus" size={16}/> Find your first book</button></div>}

@@ -26,7 +26,7 @@ def send_password_reset_email(self, user_id):
         send_mail(
             subject="LibroVault password reset",
             message=(
-                f"Hi {user.username},\n\n"
+                f"Hi {user.first_name or user.email},\n\n"
                 "Use the link below to choose a new password:\n\n"
                 f"{reset_url}\n\n"
                 "If you did not request this, you can ignore this email."
