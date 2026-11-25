@@ -1,10 +1,6 @@
 # Library Views
-import hashlib
-import logging
 from datetime import timedelta
 
-from django.conf import settings
-from django.core.cache import cache
 from django.db.models import Count, Sum
 from django.db.models.functions import TruncDate
 from django.shortcuts import get_object_or_404
@@ -30,10 +26,10 @@ from .serializers import (
     ReadingProgressSerializer,
     UserBookSerializer,
 )
-from .utils import fetch_results, query_input, save_book
+from .providers import BookProviderError, PROVIDERS, SEARCHERS
+from .utils import save_book
 
 PAGE_SIZE = 40  # Google Books results per request
-logger = logging.getLogger(__name__)
 
 
 class InUserLibrary(BasePermission):
@@ -62,7 +58,7 @@ class BookViewSet(mixins.ListModelMixin,
     updates are limited to books the caller already has.
     """
 
-    queryset = Book.objects.select_related('booklink').all()
+    queryset = Book.objects.select_related('booklink').prefetch_related('source_links').all()
     filterset_fields = ['genre', 'source']
     search_fields = ['title', 'author', 'isbn']
     ordering_fields = ['title', 'author', 'created_at', 'published_year', 'page_count']
@@ -91,7 +87,7 @@ class BookViewSet(mixins.ListModelMixin,
     @action(detail=False, methods=['get'], url_path='popular', url_name='popular')
     def popular(self, request):
         """The ten most widely held books, manual additions excluded."""
-        books = Book.objects.exclude(source="Manual").annotate(
+        books = Book.objects.exclude(source="Manual").prefetch_related('source_links').annotate(
             book_count=Count('userbook')
         ).order_by('-book_count')[:10]
         return Response(self.get_serializer(books, many=True).data)
@@ -99,10 +95,16 @@ class BookViewSet(mixins.ListModelMixin,
     @action(detail=False, methods=['get'], url_path='search', url_name='search')
     def search(self, request):
         """
-        Proxies a title search to the Google Books API. Paging follows Google's
-        own offset scheme via `startIndex`.
+        Searches one catalog provider. `startIndex` is a shared zero-based
+        offset, translated by each provider adapter as needed.
         """
-        query = request.query_params.get('q')
+        query = (request.query_params.get('q') or '').strip()
+        source = request.query_params.get('source', 'google')
+        if source not in SEARCHERS:
+            return Response(
+                {'source': f"Choose one of: {', '.join(SEARCHERS)}."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         try:
             start_index = int(request.query_params.get('startIndex', 0))
         except (TypeError, ValueError):
@@ -111,39 +113,23 @@ class BookViewSet(mixins.ListModelMixin,
                 status=status.HTTP_400_BAD_REQUEST,
             )
         start_index = max(start_index, 0)
-
-        query_params = query_input(query)
-        if query_params:
-            query_params["startIndex"] = start_index
-
         books = []
         if query:
-            cache_input = f"{query.strip().casefold()}:{start_index}"
-            cache_key = "google-books-search:v2:" + hashlib.sha256(
-                cache_input.encode("utf-8")
-            ).hexdigest()
             try:
-                books = cache.get(cache_key)
-            except Exception:
-                logger.warning("Google Books cache read failed.", exc_info=True)
-                books = None
-            if books is None:
-                books = fetch_results(query, query_params)
-                try:
-                    cache.set(
-                        cache_key,
-                        books,
-                        timeout=settings.GOOGLE_BOOKS_CACHE_TTL,
-                    )
-                except Exception:
-                    logger.warning("Google Books cache write failed.", exc_info=True)
+                books = SEARCHERS[source](query, start_index)
+            except BookProviderError as exc:
+                return Response({'detail': str(exc)}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+
+        page_size = PAGE_SIZE if source == 'google' else 20
 
         return Response({
             'query': query,
+            'source': source,
+            'source_display': PROVIDERS[source],
             'count': len(books),
             'start_index': start_index,
-            'next_index': start_index + PAGE_SIZE,
-            'prev_index': max(start_index - PAGE_SIZE, 0),
+            'next_index': start_index + page_size,
+            'prev_index': max(start_index - page_size, 0),
             'results': ExternalBookSerializer(books, many=True).data,
         })
 
@@ -177,6 +163,9 @@ class BookViewSet(mixins.ListModelMixin,
         return Response({
             'genres': pairs(Book.GENRE_CHOICES),
             'sources': pairs(BOOK_SOURCES),
+            'search_sources': [
+                {'value': key, 'label': label} for key, label in PROVIDERS.items()
+            ],
             'statuses': pairs(UserBook.STATUS_CHOICES),
             'sort_options': pairs(ORDER_CHOICES),
         })
@@ -203,7 +192,7 @@ class LibraryViewSet(mixins.ListModelMixin,
     def get_queryset(self):
         return UserBook.objects.filter(
             user=self.request.user
-        ).select_related('book', 'book__booklink')
+        ).select_related('book', 'book__booklink').prefetch_related('book__source_links')
 
     def list(self, request, *args, **kwargs):
         queryset = filter_library_queryset(self.get_queryset(), request.query_params)
@@ -294,7 +283,9 @@ class DashboardView(APIView):
     def get(self, request):
         user_books = UserBook.objects.filter(
             user=request.user
-        ).select_related('book', 'book__booklink').order_by('-added_at')
+        ).select_related('book', 'book__booklink').prefetch_related(
+            'book__source_links'
+        ).order_by('-added_at')
 
         today = timezone.localdate()
         first_day = today - timedelta(days=29)
@@ -317,7 +308,7 @@ class DashboardView(APIView):
             for offset in range(30)
         ]
 
-        popular_books = Book.objects.exclude(source="Manual").annotate(
+        popular_books = Book.objects.exclude(source="Manual").prefetch_related('source_links').annotate(
             book_count=Count('userbook')
         ).order_by('-book_count')[:10]
 

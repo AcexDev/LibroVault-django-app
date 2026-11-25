@@ -53,3 +53,24 @@ class BookLink(models.Model):
     book = models.OneToOneField(Book, on_delete=models.CASCADE)
     platforms = models.CharField(max_length=30, choices=BOOK_SOURCES)
     url = models.URLField()
+
+
+class BookSourceLink(models.Model):
+    """A provider's stable identifier and canonical URL for a catalogue book."""
+
+    book = models.ForeignKey(Book, on_delete=models.CASCADE, related_name='source_links')
+    source = models.CharField(max_length=20, choices=BOOK_SOURCES)
+    external_id = models.CharField(max_length=255)
+    url = models.URLField(blank=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=['source', 'external_id'],
+                name='unique_external_book_source_id',
+            ),
+        ]
+        ordering = ['id']
+
+    def __str__(self):
+        return f"{self.source}: {self.external_id}"

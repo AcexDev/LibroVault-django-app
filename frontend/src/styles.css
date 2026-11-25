@@ -132,6 +132,7 @@ button:focus-visible, input:focus-visible { outline: 3px solid #b8c8b7; outline-
 .book-result-meta { display: flex; align-items: center; flex-wrap: wrap; gap: 7px; min-height: 18px; }
 .book-result-meta .book-meta { min-width: 0; flex: 1 1 auto; }
 .preview-tag { display: inline-flex; align-items: center; padding: 3px 7px; color: #4f6b53; border: 1px solid #d9e5d5; border-radius: 999px; background: #edf3e9; font-size: 8px; font-weight: 600; letter-spacing: .15px; white-space: nowrap; }
+.source-tag { display: inline-flex; align-items: center; padding: 3px 7px; color: #65715f; border: 1px solid #e4e4d9; border-radius: 999px; background: #f2f1eb; font-size: 8px; white-space: nowrap; }
 .book-card:hover { transform: translateY(-2px); box-shadow: 0 9px 24px rgba(46,58,45,.07); }
 .book-card-cover-wrap { position: relative; flex: 0 0 77px; width: 77px; min-height: 118px; }
 .book-cover-button { display: block; width: 100%; padding: 0; border: 0; border-radius: 4px; text-align: left; background: transparent; }
@@ -171,12 +172,16 @@ button:focus-visible, input:focus-visible { outline: 3px solid #b8c8b7; outline-
 .page-intro { margin: 9px 0 0; color: #85887d; font-size: 12px; }
 .heading-decoration { display: grid; place-items: center; width: 56px; height: 56px; color: #758771; border-radius: 50%; background: #e6eae0; }
 .search-bar { display: flex; align-items: center; gap: 12px; min-height: 58px; padding: 7px 8px 7px 17px; color: #82907d; border: 1px solid #dedfd6; border-radius: 8px; background: #fbfaf7; }
+.search-source { display: grid; flex: 0 0 155px; gap: 3px; padding-right: 12px; border-right: 1px solid #e6e4dc; }
+.search-source span { color: #9b9d91; font-size: 8px; letter-spacing: .65px; text-transform: uppercase; }
+.search-source select { width: 100%; min-width: 0; padding: 1px 18px 1px 0; color: #454f43; border: 0; background: transparent; font-size: 10px; font-weight: 600; }
 .search-bar input { width: 100%; min-width: 0; color: #353c33; border: 0; outline: 0; background: transparent; font-size: 13px; }
 .search-bar input::placeholder { color: #aaaca1; }
 .results-heading { align-items: center; margin-top: 42px; }
 .results-heading h2 { margin-top: 4px; font-size: 20px; }
 .results-sort { display: flex; align-items: center; gap: 9px; color: var(--muted); font-size: 11px; }
 .results-sort select { max-width: 210px; padding: 9px 30px 9px 11px; color: var(--ink); border: 1px solid var(--line); border-radius: 5px; background: var(--paper); font: inherit; cursor: pointer; }
+.results-controls { display: flex; align-items: center; gap: 16px; }
 .muted-label { color: #9b9d92; font-size: 10px; }
 .load-more { display: flex; margin: 25px auto; }
 .search-prompt { display: grid; place-items: center; min-height: 210px; margin-top: 22px; color: #85887d; text-align: center; border: 1px dashed #dedfd5; border-radius: 9px; }
@@ -383,10 +388,13 @@ button:focus-visible, input:focus-visible { outline: 3px solid #b8c8b7; outline-
   .page-intro { max-width: 275px; line-height: 1.6; }
   .heading-decoration { width: 46px; height: 46px; }
   .search-bar { flex-wrap: wrap; padding: 12px; }
+  .search-source { flex: 0 0 130px; }
   .search-bar input { flex: 1; min-height: 34px; }
   .search-bar .button { width: 100%; }
   .filter-tabs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; padding-bottom: 11px; }
   .filter-tabs button { width: 100%; padding: 0 8px; }
+  .results-controls { align-items: end; flex-direction: column; gap: 6px; }
+  .results-sort { align-items: end; flex-direction: column; gap: 4px; font-size: 9px; }
   .modal-backdrop { align-items: end; padding: 0; }
   .book-dialog { width: 100%; max-height: 91vh; padding: 27px 21px max(25px, env(safe-area-inset-bottom)); border-radius: 13px 13px 0 0; }
   .dialog-layout { grid-template-columns: 93px minmax(0, 1fr); gap: 17px; }
