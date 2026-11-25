@@ -13,6 +13,8 @@ const Icon = ({ name, size = 20 }) => {
     heart: <path d="M20.8 8.7c0 5-8.8 10.3-8.8 10.3S3.2 13.7 3.2 8.7A4.7 4.7 0 0 1 12 6a4.7 4.7 0 0 1 8.8 2.7Z"/>,
     logout: <><path d="M10 17l5-5-5-5M15 12H3"/><path d="M12 3h7a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-7"/></>,
     close: <><path d="m18 6-12 12M6 6l12 12"/></>,
+    profile: <><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></>,
+    bell: <><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h20c0-2-3-2-3-9M10 21h4"/></>,
     check: <path d="m5 12 4 4L19 6"/>,
     clock: <><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></>,
   }
@@ -123,6 +125,23 @@ function StatCard({ label, value, icon, tone }) {
   </article>
 }
 
+function ReadingActivityChart({ activity = [] }) {
+  const maxPages = Math.max(1, ...activity.map((day) => day.pages))
+  const activeDays = activity.filter((day) => day.pages > 0).length
+  const labels = new Set([0, 5, 10, 15, 20, 25, activity.length - 1])
+  const dateLabel = (value, options) => new Intl.DateTimeFormat(undefined, options).format(new Date(`${value}T12:00:00`))
+
+  return <section className="reading-activity-card" aria-labelledby="reading-activity-title">
+    <div className="reading-activity-heading"><div><p className="eyebrow">One page at a time</p><h2 id="reading-activity-title">Reading activity</h2><p>Pages logged over the last 30 days</p></div><span className="activity-summary"><strong>{activeDays}</strong><small>active days</small></span></div>
+    {activeDays ? <div className="activity-chart" role="img" aria-label={`Reading activity over the last 30 days, with ${activeDays} active days`}>
+      {activity.map((day, index) => <div className="activity-day" key={day.date} title={`${dateLabel(day.date, { month: 'short', day: 'numeric' })}: ${day.pages} pages`}>
+        <span className="activity-bar-track"><span className={day.pages ? 'activity-bar has-pages' : 'activity-bar'} style={{ height: `${day.pages ? Math.max(8, day.pages / maxPages * 100) : 0}%` }}/></span>
+        <small>{labels.has(index) ? dateLabel(day.date, { month: 'short', day: 'numeric' }) : ''}</small>
+      </div>)}
+    </div> : <div className="activity-empty">Update your reading progress to start building your activity chart.</div>}
+  </section>
+}
+
 function BookCard({ book, entry, onAdd, onFavorite, onRemove, onProgress, onOpen, searchResult = false }) {
   const data = entry?.book || book
   const author = data.author || data.authors || 'Unknown author'
@@ -154,10 +173,19 @@ function BookCard({ book, entry, onAdd, onFavorite, onRemove, onProgress, onOpen
 function SearchPage({ onAdded, onAddBook, onOpenBook, notify }) {
   const [query, setQuery] = useState('')
   const [results, setResults] = useState([])
+  const [sortOrder, setSortOrder] = useState('preview')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [startIndex, setStartIndex] = useState(0)
   const [nextIndex, setNextIndex] = useState(40)
+  const orderedResults = useMemo(() => {
+    if (sortOrder !== 'preview') return results
+    return results.map((book, index) => ({ book, index })).sort((a, b) => {
+      const aHasPreview = ['PARTIAL', 'ALL_PAGES', 'ALL'].includes(a.book.viewability)
+      const bHasPreview = ['PARTIAL', 'ALL_PAGES', 'ALL'].includes(b.book.viewability)
+      return Number(bHasPreview) - Number(aHasPreview) || a.index - b.index
+    }).map(({ book }) => book)
+  }, [results, sortOrder])
 
   const search = async (event, next = 0) => {
     event?.preventDefault()
@@ -193,8 +221,8 @@ function SearchPage({ onAdded, onAddBook, onOpenBook, notify }) {
     {error && <div className="inline-error">{error}</div>}
     {loading && <div className="loading-state"><span className="spinner"/>Turning a few pages…</div>}
     {!loading && results.length > 0 && <>
-      <div className="section-heading results-heading"><div><span className="eyebrow">Your search</span><h2>{results.length} books for “{query}”</h2></div><span className="muted-label">Google Books</span></div>
-      <div className="book-grid search-results-grid">{results.map((book) => <BookCard key={book.google_id || `${book.title}-${book.authors}`} book={book} onAdd={addBook} onOpen={onOpenBook} searchResult/>)}</div>
+      <div className="section-heading results-heading"><div><span className="eyebrow">Your search</span><h2>{results.length} books for “{query}”</h2></div><label className="results-sort">Sort by<select value={sortOrder} onChange={(event) => setSortOrder(event.target.value)} aria-label="Sort search results"><option value="preview">Preview available first</option><option value="relevance">Google Books relevance</option></select></label></div>
+      <div className="book-grid search-results-grid">{orderedResults.map((book) => <BookCard key={book.google_id || `${book.title}-${book.authors}`} book={book} onAdd={addBook} onOpen={onOpenBook} searchResult/>)}</div>
       {results.length >= 20 && <button className="button button-outline load-more" onClick={(event) => search(event, nextIndex)}>Show me more</button>}
     </>}
     {!loading && !error && results.length === 0 && query && <div className="empty-panel"><span className="empty-icon"><Icon name="books" size={28}/></span><h3>No books found this time</h3><p>Try another title or author and we’ll look again.</p></div>}
@@ -329,6 +357,156 @@ function BookDetailsModal({ selection, onClose, onAddBook, onAdded, onProgress, 
   </div>
 }
 
+function CommunityPage({ notify }) {
+  const [community, setCommunity] = useState({ discover: [], followers: [], following: [], feed: [] })
+  const [reader, setReader] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [busy, setBusy] = useState(null)
+
+  const refresh = async () => {
+    setLoading(true)
+    try { setCommunity(await api('/auth/community/')) }
+    catch (err) { notify(err.message, true) }
+    finally { setLoading(false) }
+  }
+
+  useEffect(() => { refresh() }, [])
+
+  const openReader = async (readerId) => {
+    try { setReader(await api(`/auth/community/readers/${readerId}/`)) }
+    catch (err) { notify(err.message, true) }
+  }
+
+  const toggleFollow = async (readerId, follow) => {
+    setBusy(readerId)
+    try {
+      await api(`/auth/community/readers/${readerId}/`, { method: follow ? 'POST' : 'DELETE' })
+      if (reader?.reader.id === readerId) setReader(await api(`/auth/community/readers/${readerId}/`))
+      await refresh()
+      if (follow) notify('You’re following this reader now.')
+    } catch (err) { notify(err.message, true) }
+    finally { setBusy(null) }
+  }
+
+  const readerCard = (person, isFollowing = false, followsYou = false) => <article className="reader-card" key={person.id}>
+    <button className="reader-avatar" onClick={() => openReader(person.id)} aria-label={`Open ${person.display_name}'s library`}>{person.avatar ? <img src={person.avatar} alt=""/> : person.display_name.slice(0, 1).toUpperCase()}</button>
+    <button className="reader-card-copy" onClick={() => openReader(person.id)}><strong>{person.display_name}</strong><span>{person.book_count == null ? 'Library restricted' : person.book_count + (person.book_count === 1 ? ' book' : ' books')} · {person.follower_count} followers</span></button>
+    <button className={`button ${isFollowing ? 'button-outline' : 'button-dark'} button-small`} disabled={busy === person.id || isFollowing} onClick={() => toggleFollow(person.id, true)}>{busy === person.id ? '…' : isFollowing ? 'Following' : followsYou ? 'Follow back' : 'Follow'}</button>
+  </article>
+
+  return <section className="page-content">
+    <div className="page-heading"><div><p className="eyebrow">Readers make a library feel bigger</p><h1>Community</h1><p className="page-intro">Find fellow readers and see what’s on their shelves.</p></div><span className="heading-decoration"><Icon name="library" size={27}/></span></div>
+    {reader ? <>
+      <button className="text-link community-back" onClick={() => setReader(null)}>← Back to community</button>
+      <article className="community-profile-card">
+        <div className="community-profile-avatar">{reader.reader.avatar ? <img src={reader.reader.avatar} alt={reader.reader.display_name}/> : reader.reader.display_name.slice(0, 1).toUpperCase()}</div>
+        <div className="community-profile-copy"><p className="eyebrow">About this reader</p><h2>{reader.reader.display_name}</h2><span className="community-profile-count">{reader.reader.follower_count} followers · {reader.reader.book_count == null ? 'Library protected' : reader.reader.book_count + ' books'}</span><p>{reader.reader.bio || 'This reader has not added a bio yet.'}</p><span className={'follow-status ' + reader.follow_status}>{reader.follow_status === 'mutual' ? 'You follow each other' : reader.follow_status === 'following' ? 'You follow this reader' : reader.follow_status === 'follows_you' ? 'This reader follows you' : 'Not following'}</span></div>
+        <button className={'button ' + (reader.is_following ? 'button-outline' : 'button-dark')} onClick={() => toggleFollow(reader.reader.id, !reader.is_following)} disabled={busy === reader.reader.id}>{reader.is_following ? 'Following' : reader.follows_you ? 'Follow back' : 'Follow reader'}</button>
+      </article>
+      <section className="content-section community-reader-books"><div className="section-heading"><div><p className="eyebrow">Their shelf</p><h2>Books</h2></div></div>
+        {!reader.can_view_library ? <div className="empty-panel protected-library"><span className="empty-icon"><Icon name="library" size={25}/></span><h3>This reader’s books are protected</h3><p>{reader.reader.library_visibility === 'mutuals' ? 'Only mutual follows can view this library. Follow them and they can follow you back to unlock it.' : 'This library is visible to followers. Follow this reader to see their books.'}</p></div> : reader.books.length ? <div className="book-grid community-book-grid">{reader.books.map((item) => <article className="community-book-card" key={item.id}><Cover src={item.cover} title={item.title}/><div><span className={`status-pill ${item.status}`}>{item.status}</span><h3>{item.title}</h3><p>{item.author}</p>{item.page_count > 0 && <small>{item.pages_read} of {item.page_count} pages read</small>}</div></article>)}</div> : <div className="empty-panel"><h3>This shelf is empty for now</h3><p>Check back when they add a book.</p></div>}
+      </section>
+    </> : <>
+      {loading ? <div className="loading-state"><span className="spinner"/>Finding readers…</div> : <>
+        <section className="content-section community-section"><div className="section-heading"><div><p className="eyebrow">People to follow</p><h2>Readers in LibroVault</h2></div><span className="muted-label">{community.discover.length} readers</span></div>{community.discover.length ? <div className="reader-grid">{community.discover.map((person) => readerCard(person))}</div> : <div className="empty-panel"><h3>No readers to discover yet</h3><p>When more people join and add books, they’ll appear here.</p></div>}</section>
+        {community.followers.length > 0 && <section className="content-section community-section"><div className="section-heading"><div><p className="eyebrow">Your readers</p><h2>Followers</h2></div><span className="muted-label">{community.followers.length} people</span></div><div className="reader-grid">{community.followers.map((person) => {
+          // The following list is the canonical relationship set. Derive this
+          // locally too, so stale/missing serializer flags cannot offer a
+          // duplicate "Follow back" action for an existing relationship.
+          const alreadyFollowing = person.is_following || community.following.some((followed) => followed.id === person.id)
+          return readerCard(person, alreadyFollowing, person.follows_you)
+        })}</div></section>}
+        {community.following.length > 0 && <section className="content-section community-section"><div className="section-heading"><div><p className="eyebrow">Your reading circle</p><h2>Following</h2></div></div><div className="reader-grid">{community.following.map((person) => readerCard(person, true))}</div></section>}
+        <section className="content-section community-section"><div className="section-heading"><div><p className="eyebrow">Fresh from your circle</p><h2>Recent shelf additions</h2></div></div>{community.feed.length ? <div className="community-feed">{community.feed.map((item) => <button className="feed-item" key={item.id} onClick={() => openReader(item.reader_id)}><Cover src={item.cover} title={item.title}/><span><strong>{item.reader_name || 'A reader'}</strong><small>added <b>{item.title}</b> · {item.status}</small></span><Icon name="arrow" size={17}/></button>)}</div> : <div className="empty-panel"><h3>Your circle is quiet</h3><p>Follow readers to see their recent additions here.</p></div>}</section>
+      </>}
+    </>}
+  </section>
+}
+
+function ProfilePage({ user, required = false, onSaved, notify }) {
+  const [form, setForm] = useState({ username: user?.username || '', email: user?.email || '', first_name: user?.first_name || '', last_name: user?.last_name || '', bio: user?.profile?.bio || '', library_visibility: user?.profile?.library_visibility || 'everyone' })
+  const [image, setImage] = useState(null)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    api('/auth/me/').then((current) => setForm({ username: current.username || '', email: current.email || '', first_name: current.first_name || '', last_name: current.last_name || '', bio: current.profile?.bio || '', library_visibility: current.profile?.library_visibility || 'everyone' })).catch((err) => { if (required) setError(err.message) })
+  }, [])
+
+  const update = (key) => (event) => setForm((current) => ({ ...current, [key]: event.target.value }))
+  const submit = async (event) => {
+    event.preventDefault()
+    setBusy(true)
+    setError('')
+    try {
+      const body = new FormData()
+      Object.entries(form).forEach(([key, value]) => body.append(key, value))
+      if (image) body.append('image', image)
+      const response = await api('/auth/me/', { method: 'PATCH', body })
+      onSaved(response.user)
+      notify(required ? 'Username saved. Welcome to LibroVault!' : 'Your profile has been updated.')
+    } catch (err) { setError(err.message) }
+    finally { setBusy(false) }
+  }
+
+  return <section className={'page-content profile-page' + (required ? ' profile-setup-page' : '')}>
+    <div className="page-heading"><div><p className="eyebrow">{required ? 'One last step' : 'Your account'}</p><h1>{required ? 'Choose your username' : 'Your profile'}</h1><p className="page-intro">{required ? 'Pick a name readers can recognize. You can update the rest of your profile anytime.' : 'Make your corner of LibroVault your own.'}</p></div><span className="heading-decoration"><Icon name="profile" size={27}/></span></div>
+    <form className="profile-form" onSubmit={submit}>
+      <div className="profile-avatar-preview">{user?.profile?.image ? <img src={user.profile.image} alt="Profile"/> : (form.username || form.email || 'R').slice(0, 1).toUpperCase()}</div>
+      <label>Username<input value={form.username} onChange={update('username')} minLength="3" maxLength="30" pattern="[A-Za-z0-9_.@+-]+" required placeholder="Choose a username" autoFocus={required}/><small>Your username appears to other readers and must be unique.</small></label>
+      {!required && <>
+        <label>Email address<input type="email" value={form.email} onChange={update('email')} required/></label>
+        <div className="profile-name-fields"><label>First name<input value={form.first_name} onChange={update('first_name')}/></label><label>Last name<input value={form.last_name} onChange={update('last_name')}/></label></div>
+        <label>About you<textarea value={form.bio} onChange={update('bio')} maxLength="100" rows="3" placeholder="A little about your reading life"/></label>
+        <label>Who can view your library?<select value={form.library_visibility} onChange={update('library_visibility')}><option value="everyone">Everyone on LibroVault</option><option value="followers">My followers</option><option value="mutuals">People I follow who follow me back</option></select><small>Your choice also controls book updates shown in community feeds and alerts.</small></label>
+        <label>Profile photo<input type="file" accept="image/*" onChange={(event) => setImage(event.target.files?.[0] || null)}/></label>
+      </>}
+      {error && <p className="form-error" role="alert">{error}</p>}
+      <button className="button button-dark" disabled={busy}>{busy ? 'Saving…' : required ? 'Save username and continue' : 'Save profile'}</button>
+    </form>
+  </section>
+}
+
+function NotificationBell() {
+  const [open, setOpen] = useState(false)
+  const [notifications, setNotifications] = useState([])
+  const [unread, setUnread] = useState(0)
+  const refresh = async () => {
+    try {
+      const data = await api('/auth/notifications/')
+      setNotifications(data.results || [])
+      setUnread(data.unread_count || 0)
+    } catch { /* Alerts should not block the library. */ }
+  }
+
+  useEffect(() => {
+    refresh()
+    const timer = window.setInterval(refresh, 60000)
+    const onFocus = () => refresh()
+    window.addEventListener('focus', onFocus)
+    return () => { window.clearInterval(timer); window.removeEventListener('focus', onFocus) }
+  }, [])
+
+  const markRead = async (item) => {
+    if (!item.read_at) {
+      await api('/auth/notifications/' + item.id + '/read/', { method: 'POST' })
+      await refresh()
+    }
+  }
+  const markAllRead = async () => {
+    await api('/auth/notifications/read-all/', { method: 'POST' })
+    await refresh()
+  }
+  const message = (item) => item.kind === 'new_follower'
+    ? '@' + (item.actor_name || 'A reader') + ' followed you'
+    : '@' + (item.actor_name || 'A reader') + ' finished ' + (item.book_title || 'a book')
+
+  return <div className="notification-wrap">
+    <button className="notification-button" aria-label={'Notifications' + (unread ? ', ' + unread + ' unread' : '')} aria-expanded={open} onClick={() => { setOpen((value) => !value); if (!open) refresh() }}><Icon name="bell" size={19}/>{unread > 0 && <span className="notification-count">{unread > 9 ? '9+' : unread}</span>}</button>
+    {open && <section className="notification-panel"><header><strong>Notifications</strong>{unread > 0 && <button onClick={markAllRead}>Mark all read</button>}</header>{notifications.length ? <ul>{notifications.map((item) => <li key={item.id} className={item.read_at ? '' : 'unread'}><button onClick={() => markRead(item)}><span>{message(item)}</span><small>{new Date(item.created_at).toLocaleDateString()}</small></button></li>)}</ul> : <p className="notification-empty">You’re all caught up.</p>}</section>}
+  </div>
+}
+
 function App() {
   const [session, setSession] = useState(() => readSession())
   const [page, setPage] = useState('home')
@@ -408,6 +586,15 @@ function App() {
     setPage('home')
   }
 
+  const handleProfileSaved = (user) => {
+    setSession((current) => {
+      const updated = { ...current, user }
+      saveSession(updated)
+      return updated
+    })
+    if (!user.username_setup_required) setPage('home')
+  }
+
   const handleSignOut = async () => {
     await signOut()
     clearSession()
@@ -458,11 +645,14 @@ function App() {
   const closeBook = () => setSelectedBook(null)
 
   if (!session?.access) return <AuthScreen onAuthenticated={handleAuth}/>
+  if (!session.user?.username || session.user.username_setup_required) return <ProfilePage user={session.user} required onSaved={handleProfileSaved} notify={notify}/>
 
   const nav = [
     { id: 'home', label: 'Overview', icon: 'home' },
     { id: 'search', label: 'Find a book', icon: 'search' },
     { id: 'library', label: 'My library', icon: 'library' },
+    { id: 'community', label: 'Community', icon: 'chart' },
+    { id: 'profile', label: 'Profile', icon: 'profile' },
   ]
 
   return <div className="app-shell">
@@ -474,22 +664,25 @@ function App() {
       </nav>
       <div className="sidebar-bottom">
         <div className="sidebar-quote"><span>“</span><p>Books are a uniquely portable magic.</p><small>— Stephen King</small></div>
-        <button className="profile-chip" onClick={handleSignOut}><span className="avatar">{(session.user?.first_name || session.user?.email || 'R').slice(0, 1).toUpperCase()}</span><span className="profile-copy"><strong>{session.user?.first_name || session.user?.email || 'Reader'}</strong><small>Personal library</small></span><span className="signout-icon"><Icon name="logout" size={17}/></span></button>
+        <div className="sidebar-profile-actions"><button className="profile-chip" onClick={() => changePage('profile')}><span className="avatar">{(session.user?.first_name || session.user?.username || 'R').slice(0, 1).toUpperCase()}</span><span className="profile-copy"><strong>{session.user?.first_name || session.user?.username || 'Reader'}</strong><small>@{session.user?.username}</small></span></button><button className="signout-icon" aria-label="Sign out" title="Sign out" onClick={handleSignOut}><Icon name="logout" size={17}/></button></div>
       </div>
     </aside>
 
     <main className="main-area">
-      <header className="topbar"><div className="breadcrumbs">Your reading life <span>/</span> <strong>{nav.find((item) => item.id === page)?.label}</strong></div><div className="topbar-actions"><span className="today-date">{new Date().toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}</span><button className="button button-dark button-add" onClick={() => changePage('search')}><Icon name="plus" size={17}/> Find a book</button></div></header>
+      <header className="topbar"><div className="breadcrumbs">Your reading life <span>/</span> <strong>{nav.find((item) => item.id === page)?.label}</strong></div><div className="topbar-actions"><span className="today-date">{new Date().toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}</span><NotificationBell/><button className="button button-dark button-add" onClick={() => changePage('search')}><Icon name="plus" size={17}/> Find a book</button></div></header>
       {error && <div className="global-error" role="alert">{error}<button onClick={() => setError('')}><Icon name="close" size={16}/></button></div>}
       {page === 'home' && <section className="page-content">
         <div className="welcome-panel"><div className="welcome-copy"><p className="eyebrow">Your reading room</p><h1>{greeting}, {session.user?.first_name || session.user?.email?.split('@')[0] || 'reader'}.</h1><p>Every book you make time for is a small gift to yourself.</p><button className="button button-light" onClick={() => changePage('search')}>Find something to read <Icon name="arrow" size={17}/></button></div><div className="welcome-art" aria-hidden="true"><div className="sun-disc"/><div className="art-book book-one"/><div className="art-book book-two"/><div className="art-book book-three"/><span className="art-spark">✳</span></div></div>
-        <div className="stats-grid"><StatCard label="Books collected" value={dashboard?.book_count ?? 0} icon="books" tone="sage"/><StatCard label="Currently reading" value={dashboard?.reading_count ?? 0} icon="clock" tone="sand"/><StatCard label="Favorites" value={dashboard?.favourites_count ?? 0} icon="heart" tone="rose"/></div>
+        <div className="stats-grid"><StatCard label="Books collected" value={dashboard?.book_count ?? 0} icon="books" tone="sage"/><StatCard label="Currently reading" value={dashboard?.reading_count ?? 0} icon="clock" tone="sand"/><StatCard label="Pages read" value={dashboard?.reading_stats?.pages_read ?? 0} icon="books" tone="rose"/><StatCard label="Books finished" value={dashboard?.reading_stats?.books_completed ?? 0} icon="check" tone="sage"/></div>
+        <ReadingActivityChart activity={dashboard?.reading_stats?.activity}/>
         <section className="content-section"><div className="section-heading"><div><p className="eyebrow">A little progress adds up</p><h2>Your recent reads</h2></div><button className="text-link" onClick={() => changePage('library')}>See your library <Icon name="arrow" size={16}/></button></div>
           {loading && !dashboard ? <div className="loading-state"><span className="spinner"/>Opening your shelves…</div> : dashboard?.books?.length ? <div className="book-grid">{dashboard.books.slice(0, 3).map((entry) => <BookCard key={entry.id} entry={entry} onOpen={openBook}/>)}</div> : <div className="empty-panel"><span className="empty-icon"><Icon name="library" size={28}/></span><h3>Your shelves are waiting</h3><p>Search for a book you love and add it to your library.</p><button className="button button-outline" onClick={() => changePage('search')}><Icon name="plus" size={16}/> Find your first book</button></div>}
         </section>
         {dashboard?.popular_books?.length > 0 && <section className="content-section popular-section"><div className="section-heading"><div><p className="eyebrow">From the community</p><h2>Readers are picking up</h2></div><span className="muted-label">Popular this week</span></div><div className="book-grid">{dashboard.popular_books.slice(0, 3).map((book) => <BookCard key={book.id} book={book} onOpen={openBook}/>)}</div></section>}
       </section>}
       {page === 'search' && <SearchPage onAdded={handleBookAdded} onAddBook={addBookToLibrary} onOpenBook={openBook} notify={notify}/>}
+      {page === 'community' && <CommunityPage notify={notify}/>}
+      {page === 'profile' && <ProfilePage user={session.user} onSaved={handleProfileSaved} notify={notify}/>}
       {page === 'library' && <section className="page-content">
         <div className="page-heading"><div><p className="eyebrow">Everything you’re reading, and everything you’ll read</p><h1>My library</h1><p className="page-intro">{library.length ? `${library.length} books on this shelf.` : 'Your personal collection, gathered in one place.'}</p></div><button className="button button-dark" onClick={() => changePage('search')}><Icon name="plus" size={17}/> Add a book</button></div>
         <div className="library-toolbar"><div className="filter-tabs">{[['', 'All books'], ['reading', 'Reading'], ['wishlist', 'Want to read'], ['completed', 'Finished']].map(([value, label]) => <button key={value || 'all'} className={libraryStatus === value ? 'selected' : ''} onClick={() => { setLibraryStatus(value); loadLibrary(value) }}>{label}</button>)}</div></div>

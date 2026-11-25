@@ -38,6 +38,13 @@ def api_root(request):
             'list': reverse('library-list', request=request),
             'dashboard': reverse('dashboard', request=request),
         },
+        'community': {
+            'overview': reverse('community', request=request),
+        },
+        'notifications': {
+            'list': reverse('notification-list', request=request),
+            'read_all': reverse('notification-read-all', request=request),
+        },
         'documentation': {
             'schema': reverse('schema', request=request),
             'swagger': reverse('swagger-ui', request=request),

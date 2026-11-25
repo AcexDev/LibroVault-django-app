@@ -1,18 +1,22 @@
 # Library Views
 import hashlib
 import logging
+from datetime import timedelta
 
 from django.conf import settings
 from django.core.cache import cache
-from django.db.models import Count
+from django.db.models import Count, Sum
+from django.db.models.functions import TruncDate
 from django.shortcuts import get_object_or_404
+from django.utils import timezone
 from rest_framework import mixins, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.permissions import SAFE_METHODS, AllowAny, BasePermission, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from users.models import UserBook
+from users.models import ReadingActivity, UserBook
+from users.notifications import notify_followers_of_completion
 
 from .filters import ORDER_CHOICES, filter_library_queryset
 from .models import BOOK_SOURCES, Book
@@ -232,6 +236,11 @@ class LibraryViewSet(mixins.ListModelMixin,
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+        prior_entry = UserBook.objects.filter(user=request.user, book=book).only(
+            'status', 'pages_read'
+        ).first()
+        previous_pages = prior_entry.pages_read if prior_entry else 0
+        was_completed = bool(prior_entry and prior_entry.status == 'completed')
         user_book, _ = UserBook.objects.update_or_create(
             user=request.user,
             book=book,
@@ -240,6 +249,14 @@ class LibraryViewSet(mixins.ListModelMixin,
                 'status': "completed" if pages_read == book.page_count else "reading",
             },
         )
+        if book.page_count > 0 and pages_read == book.page_count and not was_completed:
+            notify_followers_of_completion(request.user, book)
+        if pages_read > previous_pages:
+            ReadingActivity.objects.create(
+                user=request.user,
+                book=book,
+                pages_read=pages_read - previous_pages,
+            )
 
         return Response({
             'detail': "Reading Progress Updated!",
@@ -279,6 +296,27 @@ class DashboardView(APIView):
             user=request.user
         ).select_related('book', 'book__booklink').order_by('-added_at')
 
+        today = timezone.localdate()
+        first_day = today - timedelta(days=29)
+        activity_by_day = {
+            row['day'].isoformat(): row['pages']
+            for row in ReadingActivity.objects.filter(
+                user=request.user, recorded_at__date__gte=first_day,
+                recorded_at__date__lte=today,
+            ).annotate(
+                day=TruncDate('recorded_at', tzinfo=timezone.get_current_timezone())
+            ).values('day').annotate(pages=Sum('pages_read'))
+        }
+        reading_activity = [
+            {
+                'date': (first_day + timedelta(days=offset)).isoformat(),
+                'pages': activity_by_day.get(
+                    (first_day + timedelta(days=offset)).isoformat(), 0
+                ),
+            }
+            for offset in range(30)
+        ]
+
         popular_books = Book.objects.exclude(source="Manual").annotate(
             book_count=Count('userbook')
         ).order_by('-book_count')[:10]
@@ -287,6 +325,12 @@ class DashboardView(APIView):
             'book_count': user_books.count(),
             'favourites_count': user_books.filter(favourite=True).count(),
             'reading_count': user_books.filter(status='reading').count(),
+            'reading_stats': {
+                'pages_read': user_books.aggregate(total=Sum('pages_read'))['total'] or 0,
+                'books_completed': user_books.filter(status='completed').count(),
+                'active_days': sum(1 for day in reading_activity if day['pages'] > 0),
+                'activity': reading_activity,
+            },
             'books': UserBookSerializer(
                 user_books, many=True, context={'request': request}
             ).data,
