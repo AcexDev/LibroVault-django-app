@@ -3,6 +3,9 @@ import logging
 
 from django.contrib.auth import get_user_model
 from django.db import IntegrityError
+from django.db.models import Count
+from django.shortcuts import get_object_or_404
+from django.utils import timezone
 from rest_framework import generics, status
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
@@ -13,6 +16,9 @@ from rest_framework_simplejwt.views import TokenObtainPairView
 
 from .tasks import send_password_reset_email
 from .serializers import (
+    CommunityBookSerializer,
+    CommunityReaderSerializer,
+    NotificationSerializer,
     LoginSerializer,
     LogoutSerializer,
     PasswordResetConfirmSerializer,
@@ -22,7 +28,7 @@ from .serializers import (
     UserUpdateSerializer,
 )
 from .social_auth import get_social_profile
-from .models import SocialIdentity
+from .models import Notification, SocialIdentity, UserBook, UserFollow
 
 logger = logging.getLogger(__name__)
 User = get_user_model()
@@ -212,3 +218,116 @@ class SocialLoginView(APIView):
             'access': str(refresh.access_token),
             'user': UserSerializer(user, context={'request': request}).data,
         })
+
+
+class CommunityView(APIView):
+    """Discover readers, follow them, and see what they add to their shelves."""
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        followed_ids = UserFollow.objects.filter(
+            follower=request.user
+        ).values_list('following_id', flat=True)
+        annotations = {
+            'book_count': Count('userbook', distinct=True),
+            'follower_count': Count('followers', distinct=True),
+        }
+        following = User.objects.filter(pk__in=followed_ids).annotate(
+            **annotations
+        ).order_by('first_name', 'pk')
+        follower_ids = UserFollow.objects.filter(
+            following=request.user
+        ).values_list('follower_id', flat=True)
+        followers = User.objects.filter(pk__in=follower_ids).annotate(
+            **annotations
+        ).order_by('first_name', 'pk')
+        discover = User.objects.exclude(pk=request.user.pk).exclude(
+            pk__in=followed_ids
+        ).annotate(**annotations).order_by(
+            '-follower_count', 'pk'
+        )[:16]
+        followed = UserFollow.objects.filter(follower=request.user).select_related('following__profile')
+        accessible_ids = [
+            relation.following_id for relation in followed
+            if relation.following.profile.library_visibility != 'mutuals'
+            or UserFollow.objects.filter(follower=relation.following, following=request.user).exists()
+        ]
+        feed = UserBook.objects.filter(user_id__in=accessible_ids).select_related(
+            'user', 'book'
+        ).order_by('-added_at')[:30]
+        return Response({
+            'following': CommunityReaderSerializer(following, many=True, context={'request': request}).data,
+            'followers': CommunityReaderSerializer(followers, many=True, context={'request': request}).data,
+            'discover': CommunityReaderSerializer(discover, many=True, context={'request': request}).data,
+            'feed': CommunityBookSerializer(feed, many=True).data,
+        })
+
+
+class CommunityReaderView(APIView):
+    """Return a reader's public library or follow/unfollow that reader."""
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, user_id):
+        reader = get_object_or_404(
+            User.objects.annotate(
+                book_count=Count('userbook', distinct=True),
+                follower_count=Count('followers', distinct=True),
+            ), pk=user_id,
+        )
+        can_view_library = CommunityReaderSerializer(reader, context={'request': request}).data['can_view_library']
+        books = UserBook.objects.filter(user=reader).select_related('book').order_by('-added_at') if can_view_library else UserBook.objects.none()
+        is_following = UserFollow.objects.filter(follower=request.user, following=reader).exists()
+        follows_you = UserFollow.objects.filter(follower=reader, following=request.user).exists()
+        follow_status = 'mutual' if is_following and follows_you else (
+            'following' if is_following else 'follows_you' if follows_you else 'not_following'
+        )
+        return Response({
+            'reader': CommunityReaderSerializer(reader, context={'request': request}).data,
+            'is_following': is_following,
+            'follows_you': follows_you,
+            'follow_status': follow_status,
+            'can_view_library': can_view_library,
+            'books': CommunityBookSerializer(books, many=True).data,
+        })
+
+    def post(self, request, user_id):
+        reader = get_object_or_404(User, pk=user_id)
+        if reader.pk == request.user.pk:
+            return Response({'detail': 'You cannot follow yourself.'}, status=status.HTTP_400_BAD_REQUEST)
+        _, created = UserFollow.objects.get_or_create(follower=request.user, following=reader)
+        if created:
+            Notification.objects.create(user=reader, actor=request.user, kind='new_follower')
+        return Response({'detail': 'Reader followed.'}, status=status.HTTP_200_OK)
+
+    def delete(self, request, user_id):
+        UserFollow.objects.filter(follower=request.user, following_id=user_id).delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class NotificationListView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        notifications = Notification.objects.filter(user=request.user).select_related(
+            'actor', 'book'
+        )[:30]
+        return Response({
+            'unread_count': Notification.objects.filter(user=request.user, read_at__isnull=True).count(),
+            'results': NotificationSerializer(notifications, many=True).data,
+        })
+
+
+class NotificationReadView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, notification_id=None):
+        if notification_id is None:
+            Notification.objects.filter(user=request.user, read_at__isnull=True).update(read_at=timezone.now())
+        else:
+            notification = get_object_or_404(Notification, pk=notification_id, user=request.user)
+            if notification.read_at is None:
+                notification.read_at = timezone.now()
+                notification.save(update_fields=['read_at'])
+        return Response({'detail': 'Notifications marked as read.'}, status=status.HTTP_200_OK)

@@ -11,8 +11,12 @@ JSON in, JSON out — bring your own frontend.
 - **Google Books search** — proxy the Google Books API and add any result to your library in one call
 - **Manual book entry** — add books not on Google Books
 - **Reading tracker** — log pages read; status auto-updates to `completed` when you finish
+- **Reading statistics** — track pages read and books finished, with a 30-day page activity chart
 - **Library management** — filter your collection by status (`reading`, `completed`, `wishlist`), sort by title or date added, and toggle favourites
 - **Popular books** — see which books other users have added most
+- **Community** — discover readers, follow them, browse their libraries, and see recent shelf additions
+- **Library visibility** — share with everyone, your followers, or mutual follows
+- **Notifications** — get in-app alerts for new followers and books completed by readers you follow
 - **User profiles** — profile picture (Cloudinary), bio, and email-based accounts
 - **Auth** — JWT email/password login, Google and GitHub social login, plus password reset by email
 - **Source-aware updates** — Google Books entries only expose `status` for editing; manual entries expose the full field set
@@ -216,11 +220,12 @@ Access tokens last 60 minutes, refresh tokens 7 days. Refreshing rotates the ref
 | POST | `verify/` | `token` | Check a token is valid |
 | POST | `logout/` | `refresh` | Blacklist a refresh token |
 | GET | `me/` | — | Signed-in user with profile |
-| PATCH | `me/` | `email`, `first_name`, `last_name`, `bio`, `image` | Update account and profile (all optional) |
+| PATCH | `me/` | `username`, `email`, `first_name`, `last_name`, `bio`, `image`, `library_visibility` | Update account and profile (all optional) |
 | POST | `password-reset/` | `email` | Email a reset link to `FRONTEND_URL/reset-password/<uid>/<token>` |
 | POST | `password-reset/confirm/` | `uid`, `token`, `new_password` | Set a new password |
 
 `PATCH me/` accepts `multipart/form-data` when uploading an `image`.
+`library_visibility` accepts `everyone`, `followers`, or `mutuals`.
 
 ### Books — `/api/books/`
 
@@ -287,6 +292,13 @@ Your own collection. Entries are addressed by **book id**, so the same id works 
 | Method | URL | Description |
 |--------|-----|-------------|
 | GET | `/api/dashboard/` | `book_count`, `favourites_count`, `reading_count`, `books`, `popular_books` |
+| GET | `/api/auth/community/` | Suggested readers, followed readers, and recent additions from your circle |
+| GET | `/api/auth/community/readers/{id}/` | Reader profile and public library |
+| POST | `/api/auth/community/readers/{id}/` | Follow a reader |
+| DELETE | `/api/auth/community/readers/{id}/` | Unfollow a reader |
+| GET | `/api/auth/notifications/` | Recent notifications and `unread_count` |
+| POST | `/api/auth/notifications/{id}/read/` | Mark one notification read |
+| POST | `/api/auth/notifications/read-all/` | Mark all notifications read |
 
 ---
 
@@ -305,11 +317,11 @@ python manage.py assign_publishedYears
 
 ## Roadmap
 
-- [ ] Social features — follow users, see friends' libraries (`UserFollow` model is in place)
-- [ ] Reading statistics and charts
+- [x] Community — discover and follow readers, browse their libraries, and view a followed-reader activity feed
+- [x] Reading statistics and charts
 - [ ] Open Library / Internet Archive as additional book sources
 - [ ] Book reviews and ratings
-- [ ] Public/private library visibility
+- [x] Library visibility — choose whether everyone, followers, or mutual follows can view your books
 - [x] OpenAPI schema + Swagger UI
 
 ---

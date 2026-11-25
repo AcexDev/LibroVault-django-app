@@ -85,6 +85,13 @@ class SocialIdentity(models.Model):
         return f'{self.provider}:{self.provider_uid}'
 
 # Create your models here.
+LIBRARY_VISIBILITY_CHOICES = [
+    ('everyone', 'Everyone'),
+    ('followers', 'All followers'),
+    ('mutuals', 'Mutual follows'),
+]
+
+
 class Profile(models.Model):
     user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     image = CloudinaryField(default='https://res.cloudinary.com/dtrsdx9x9/image/upload/v1773418355/default_htbobq.jpg', 
@@ -98,6 +105,9 @@ class Profile(models.Model):
                                 'gravity': 'face',
                             })
     bio = models.CharField(max_length=100,blank=True)
+    library_visibility = models.CharField(
+        max_length=12, choices=LIBRARY_VISIBILITY_CHOICES, default='everyone'
+    )
 
     def __str__(self):
         return f"{self.user.email} Profile"
@@ -137,6 +147,22 @@ class UserBook(models.Model):
         self.full_clean()
         return super().save(*args, **kwargs)
 
+
+class ReadingActivity(models.Model):
+    """Positive page progress recorded by a reader at a point in time."""
+
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    book = models.ForeignKey('library.Book', on_delete=models.CASCADE)
+    pages_read = models.PositiveIntegerField()
+    recorded_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['recorded_at']
+        indexes = [models.Index(fields=['user', 'recorded_at'])]
+
+    def __str__(self):
+        return f"{self.user} read {self.pages_read} pages of {self.book}"
+
 class UserFollow(models.Model):
     follower = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -152,3 +178,23 @@ class UserFollow(models.Model):
 
     class Meta:
         unique_together = ("follower", "following")
+
+
+class Notification(models.Model):
+    KIND_CHOICES = [
+        ('new_follower', 'New follower'),
+        ('book_completed', 'Book completed'),
+    ]
+
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='notifications')
+    actor = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='notifications_sent')
+    kind = models.CharField(max_length=24, choices=KIND_CHOICES)
+    book = models.ForeignKey(Book, on_delete=models.SET_NULL, null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    read_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f'{self.kind} for {self.user}'
