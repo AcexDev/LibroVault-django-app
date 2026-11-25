@@ -8,7 +8,7 @@ JSON in, JSON out — bring your own frontend.
 
 ## Features
 
-- **Google Books search** — proxy the Google Books API and add any result to your library in one call
+- **Multi-source book search** — search Google Books, Open Library, or Internet Archive and add results to your library
 - **Manual book entry** — add books not on Google Books
 - **Reading tracker** — log pages read; status auto-updates to `completed` when you finish
 - **Reading statistics** — track pages read and books finished, with a 30-day page activity chart
@@ -156,8 +156,11 @@ with `read:user` and `user:email` scopes.
 
 ### Redis and background workers
 
-Google Books search responses are cached for 15 minutes by default. Password
-reset emails run as Celery tasks. A basic local run uses in-memory caching and
+External book search responses are cached for one hour by default. Open Library
+and Internet Archive requests include a descriptive application `User-Agent`;
+set `BOOKS_API_CONTACT_EMAIL` to a monitored contact address for Open Library.
+Searches are per-user queries, not bulk catalog harvesting. Password reset
+emails run as Celery tasks. A basic local run uses in-memory caching and
 synchronous tasks; set `REDIS_URL` and `CELERY_BROKER_URL` to use Redis.
 
 For a local Redis, API, and worker stack, copy `.env.example` to `.env`, fill in
@@ -238,15 +241,25 @@ The shared catalogue. Reads are public.
 | GET | `/api/books/{id}/` | Book detail, plus your `pages_read` and `library_entry` when signed in |
 | PATCH | `/api/books/{id}/` | Update a book you hold. `source: Manual` → full edit; otherwise `status` only |
 | GET | `/api/books/popular/` | Ten most widely held books with `book_count` (excludes manual additions) |
-| GET | `/api/books/search/` | Google Books title search. `?q=` and `?startIndex=` |
+| GET | `/api/books/search/` | Search one provider. `?q=`, `?source=google\|openlib\|archive`, and `?startIndex=` |
 | POST | `/api/books/add/` | Add a search result to the catalogue and your library as `wishlist` |
 | GET | `/api/books/meta/` | Genre, source, status and sort choices |
 
-`GET /api/books/search/` returns Google results alongside paging offsets:
+`GET /api/books/search/` returns normalized results from the selected provider
+alongside paging offsets. Google Books remains the default source. Open Library
+searches use its work search API; Internet Archive searches are limited to text
+items. Their source links open the provider's own page, where reading or lending
+availability is determined by that provider and the specific item.
+
+Each result has `source` and `external_id`. The add endpoint stores these as
+provider-specific links while keeping a single LibroVault book entry when an
+ISBN or title/author already matches:
 
 ```json
 {
   "query": "dune",
+  "source": "google",
+  "source_display": "Google Books",
   "count": 40,
   "start_index": 0,
   "next_index": 40,
@@ -254,6 +267,8 @@ The shared catalogue. Reads are public.
   "results": [
     {
       "google_id": "B1hSG45JCX4C",
+      "external_id": "B1hSG45JCX4C",
+      "source": "google",
       "title": "Dune",
       "subtitle": "A novel",
       "authors": "Frank Herbert",
@@ -319,7 +334,7 @@ python manage.py assign_publishedYears
 
 - [x] Community — discover and follow readers, browse their libraries, and view a followed-reader activity feed
 - [x] Reading statistics and charts
-- [ ] Open Library / Internet Archive as additional book sources
+- [x] Open Library / Internet Archive as additional book sources
 - [ ] Book reviews and ratings
 - [x] Library visibility — choose whether everyone, followers, or mutual follows can view your books
 - [x] OpenAPI schema + Swagger UI

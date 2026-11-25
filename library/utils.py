@@ -2,7 +2,7 @@
 import requests
 from django.contrib.auth import get_user_model
 
-from library.models import Book, BookLink
+from library.models import Book, BookLink, BookSourceLink
 from users.models import UserBook
 from bookcollection.settings import GOOGLE_API_KEY
 
@@ -99,50 +99,58 @@ def save_book(user: User, book_data: dict):
     title = book_data['title']
     author = book_data['authors']
     isbn = book_data['isbn']
-    book_google_id = book_data['google_id']
+    source = book_data.get('source') or 'google'
+    external_id = book_data.get('external_id') or book_data.get('google_id') or ''
+    google_id = book_data.get('google_id') or (external_id if source == 'google' else '')
+    defaults = {
+        'title': title,
+        'author': author,
+        'isbn': isbn,
+        'published_year': book_data.get('published_year') or 0,
+        'cover': book_data.get('cover') or DEFAULT_THUMBNAIL,
+        'genre': 'FIC',
+        'description': book_data.get('description') or '',
+        'source': source,
+        'viewability': book_data.get('viewability'),
+        'page_count': book_data.get('page_count') or 0,
+    }
+    if google_id:
+        defaults['google_id'] = google_id
 
-    if book_google_id:
-        book, created = Book.objects.get_or_create(
-            google_id=book_google_id,
-            defaults={
-                "title": title,
-                "author": author,
-                'isbn': isbn,
-                "published_year": book_data["published_year"],
-                "cover": book_data['cover'],
-                # "genre": book_data["categories"],
-                "genre": "FIC",
-                "description": book_data["description"],
-                "source": "Google Books",
-                "viewability": book_data["viewability"],
-                "page_count": book_data["page_count"]
-            }
-        )
+    source_link = None
+    if external_id:
+        source_link = BookSourceLink.objects.select_related('book').filter(
+            source=source, external_id=external_id
+        ).first()
+
+    if source_link:
+        book = source_link.book
+        if book_data.get('link') and source_link.url != book_data['link']:
+            source_link.url = book_data['link']
+            source_link.save(update_fields=['url'])
     else:
-        book, created = Book.objects.get_or_create(
-            title=title,
-            author=author,
-            defaults={
-                'isbn': isbn,
-                'google_id': book_google_id,
-                "published_year": book_data["published_year"],
-                "cover": book_data['cover'],
-                # "genre": book_data["categories"],
-                "genre": "FIC",
-                "description": book_data["description"],
-                "source": "Google Books",
-                "viewability": book_data["viewability"],
-                "page_count": book_data["page_count"]
-            }
-        )
+        book = None
+        if isbn:
+            book = Book.objects.filter(isbn=isbn).first()
+        if book is None:
+            book, _ = Book.objects.get_or_create(
+                title=title,
+                author=author,
+                defaults=defaults,
+            )
+        if external_id:
+            source_link, _ = BookSourceLink.objects.get_or_create(
+                source=source,
+                external_id=external_id,
+                defaults={'book': book, 'url': book_data.get('link') or ''},
+            )
+            if source_link.book_id != book.pk:
+                book = source_link.book
 
     if book_data.get('link'):
         BookLink.objects.get_or_create(
             book=book,
-            platforms="Google Books",
-            defaults={
-                'url': book_data.get('link')
-            }
+            defaults={'platforms': source, 'url': book_data['link']},
         )
 
     user_book, created = UserBook.objects.get_or_create(

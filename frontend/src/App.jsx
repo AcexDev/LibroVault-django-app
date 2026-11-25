@@ -1,6 +1,15 @@
 import { useEffect, useMemo, useState } from 'react'
 import { api, clearSession, readSession, saveSession, signIn, signInWithSocial, signOut, signUp } from './api.js'
 
+const BOOK_SOURCE_LABELS = { google: 'Google Books', openlib: 'Open Library', archive: 'Internet Archive', Manual: 'Personal Addition' }
+const normalizeBookSource = (source) => {
+  const value = (source || '').toLowerCase()
+  if (value.includes('open')) return 'openlib'
+  if (value.includes('archive')) return 'archive'
+  if (value === 'manual' || value === 'publisher') return value
+  return 'google'
+}
+
 const Icon = ({ name, size = 20 }) => {
   const paths = {
     books: <><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v16H6.5A2.5 2.5 0 0 0 4 21z"/><path d="M4 5.5v13A2.5 2.5 0 0 1 6.5 16H20M8 7h8M8 10h7"/></>,
@@ -147,13 +156,13 @@ function BookCard({ book, entry, onAdd, onFavorite, onRemove, onProgress, onOpen
   const author = data.author || data.authors || 'Unknown author'
   const [pages, setPages] = useState(entry?.pages_read || 0)
   const bookId = entry?.book_id || data.id
-  const previewAvailable = ['PARTIAL', 'ALL_PAGES', 'ALL'].includes(data.viewability)
+  const previewAvailable = normalizeBookSource(data.source) === 'google' && ['PARTIAL', 'ALL_PAGES', 'ALL'].includes(data.viewability)
   return <article className={`book-card ${searchResult ? 'search-result-card' : ''}`}>
     <div className="book-card-cover-wrap"><button className="book-cover-button" onClick={() => onOpen?.(data, entry)} aria-label={`Explore ${data.title}`}><Cover src={data.cover} title={data.title}/></button>
       {entry && <span className={`status-pill ${entry.status}`}>{entry.status}</span>}
     </div>
     <div className="book-card-body">
-      <div className="book-result-meta"><div className="book-meta">{(data.genre_display || data.categories || data.published_year || 'In your orbit').toString().split(',')[0]}</div>{searchResult && previewAvailable && <span className="preview-tag" title="Google Books reports a preview for this title">Preview available</span>}</div>
+      <div className="book-result-meta"><div className="book-meta">{(data.genre_display || data.categories || data.published_year || 'In your orbit').toString().split(',')[0]}</div>{searchResult && <span className="source-tag">{BOOK_SOURCE_LABELS[normalizeBookSource(data.source)]}</span>}{searchResult && previewAvailable && <span className="preview-tag" title="Google Books reports a preview for this title">Preview available</span>}</div>
       <h3><button className="book-title-button" onClick={() => onOpen?.(data, entry)}>{data.title}</button></h3>
       <p className="book-author">{author}</p>
       {entry && <div className="book-progress">
@@ -172,6 +181,8 @@ function BookCard({ book, entry, onAdd, onFavorite, onRemove, onProgress, onOpen
 
 function SearchPage({ onAdded, onAddBook, onOpenBook, notify }) {
   const [query, setQuery] = useState('')
+  const [source, setSource] = useState('google')
+  const [sourceDisplay, setSourceDisplay] = useState('Google Books')
   const [results, setResults] = useState([])
   const [sortOrder, setSortOrder] = useState('preview')
   const [loading, setLoading] = useState(false)
@@ -194,9 +205,10 @@ function SearchPage({ onAdded, onAddBook, onOpenBook, notify }) {
     setError('')
     setStartIndex(next)
     try {
-      const data = await api(`/books/search/?q=${encodeURIComponent(query.trim())}&startIndex=${next}`, { auth: false })
+      const data = await api(`/books/search/?q=${encodeURIComponent(query.trim())}&source=${source}&startIndex=${next}`, { auth: false })
       setResults(data.results || [])
       setNextIndex(data.next_index || next + 40)
+      setSourceDisplay(data.source_display || BOOK_SOURCE_LABELS[source])
     } catch (err) {
       setError(err.message)
       setResults([])
@@ -217,12 +229,12 @@ function SearchPage({ onAdded, onAddBook, onOpenBook, notify }) {
 
   return <section className="page-content">
     <div className="page-heading"><div><p className="eyebrow">Find your next favorite</p><h1>Book search</h1><p className="page-intro">Search the shelves. When something catches your eye, make it yours.</p></div><span className="heading-decoration"><Icon name="search" size={27}/></span></div>
-    <form className="search-bar" onSubmit={(event) => search(event, 0)}><Icon name="search" size={20}/><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="A title, author, or a feeling…" aria-label="Search books"/><button className="button button-dark" disabled={loading}>{loading ? 'Looking…' : 'Search books'}</button></form>
+    <form className="search-bar" onSubmit={(event) => search(event, 0)}><label className="search-source"><span>Search in</span><select value={source} onChange={(event) => { const nextSource = event.target.value; setSource(nextSource); setSourceDisplay(BOOK_SOURCE_LABELS[nextSource]); setResults([]); setStartIndex(0) }} aria-label="Book search source"><option value="google">Google Books</option><option value="openlib">Open Library</option><option value="archive">Internet Archive</option></select></label><Icon name="search" size={20}/><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="A title, author, or a feeling…" aria-label="Search books"/><button className="button button-dark" disabled={loading}>{loading ? 'Looking…' : 'Search books'}</button></form>
     {error && <div className="inline-error">{error}</div>}
     {loading && <div className="loading-state"><span className="spinner"/>Turning a few pages…</div>}
     {!loading && results.length > 0 && <>
-      <div className="section-heading results-heading"><div><span className="eyebrow">Your search</span><h2>{results.length} books for “{query}”</h2></div><label className="results-sort">Sort by<select value={sortOrder} onChange={(event) => setSortOrder(event.target.value)} aria-label="Sort search results"><option value="preview">Preview available first</option><option value="relevance">Google Books relevance</option></select></label></div>
-      <div className="book-grid search-results-grid">{orderedResults.map((book) => <BookCard key={book.google_id || `${book.title}-${book.authors}`} book={book} onAdd={addBook} onOpen={onOpenBook} searchResult/>)}</div>
+      <div className="section-heading results-heading"><div><span className="eyebrow">Your search</span><h2>{results.length} books for “{query}”</h2></div><div className="results-controls"><span className="muted-label">{sourceDisplay}</span>{source === 'google' && <label className="results-sort">Sort by<select value={sortOrder} onChange={(event) => setSortOrder(event.target.value)} aria-label="Sort search results"><option value="preview">Preview available first</option><option value="relevance">Google Books relevance</option></select></label>}</div></div>
+      <div className="book-grid search-results-grid">{orderedResults.map((book) => <BookCard key={`${book.source || source}:${book.external_id || book.google_id || `${book.title}-${book.authors}`}`} book={book} onAdd={addBook} onOpen={onOpenBook} searchResult/>)}</div>
       {results.length >= 20 && <button className="button button-outline load-more" onClick={(event) => search(event, nextIndex)}>Show me more</button>}
     </>}
     {!loading && !error && results.length === 0 && query && <div className="empty-panel"><span className="empty-icon"><Icon name="books" size={28}/></span><h3>No books found this time</h3><p>Try another title or author and we’ll look again.</p></div>}
@@ -230,14 +242,15 @@ function SearchPage({ onAdded, onAddBook, onOpenBook, notify }) {
   </section>
 }
 
-function GoogleBookReaderLink({ googleBooksUrl }) {
+function ProviderBookLink({ provider, url }) {
+  const providerName = BOOK_SOURCE_LABELS[provider] || 'the book provider'
   return <div className="reader-launch-card">
     <span className="reader-launch-icon"><Icon name="books" size={30}/></span>
-    <p className="eyebrow">Google Books reader</p>
-    <h3>Continue into the book</h3>
-    <p className="reader-launch-copy">Open this title directly in Google Books. Your LibroVault library will stay open in this tab.</p>
-    <a className="button button-dark" href={googleBooksUrl} target="_blank" rel="noreferrer">Open book reader <Icon name="arrow" size={16}/></a>
-    <span className="reader-launch-note">Opens in a new tab · Preview access is set by Google and the publisher</span>
+    <p className="eyebrow">{providerName}</p>
+    <h3>Continue at the source</h3>
+    <p className="reader-launch-copy">Open this title on {providerName}. Your LibroVault library will stay open in this tab.</p>
+    <a className="button button-dark" href={url} target="_blank" rel="noreferrer">Open on {providerName} <Icon name="arrow" size={16}/></a>
+    <span className="reader-launch-note">Opens in a new tab · Reading and borrowing access is set by the source</span>
   </div>
 }
 
@@ -249,7 +262,11 @@ function BookDetailsModal({ selection, onClose, onAddBook, onAdded, onProgress, 
   const [savingProgress, setSavingProgress] = useState(false)
   const [error, setError] = useState('')
   const identifier = details.google_id || details.isbn
-  const [activeTab, setActiveTab] = useState(identifier ? 'preview' : 'details')
+  const initialSource = normalizeBookSource(selection.book.source)
+  const [activeTab, setActiveTab] = useState(
+    initialSource === 'google' ? (identifier ? 'preview' : 'details') :
+      ['openlib', 'archive'].includes(initialSource) && selection.book.link ? 'preview' : 'details'
+  )
   const [pagesInput, setPagesInput] = useState(selection.entry?.pages_read ?? 0)
 
   useEffect(() => {
@@ -310,10 +327,15 @@ function BookDetailsModal({ selection, onClose, onAddBook, onAdded, onProgress, 
     }
   }
 
+  const source = normalizeBookSource(details.source || selection.book.source)
+  const sourceName = BOOK_SOURCE_LABELS[source] || 'Book source'
   const readerLink = /^https:\/\/books\.google\.[^/]+\/books\?/.test(details.link || '') && details.link.includes('printsec=') ? details.link : null
   const googleBooksUrl = readerLink || (details.google_id
     ? `https://books.google.com/books?id=${encodeURIComponent(details.google_id)}&printsec=frontcover#v=onepage&q&f=false`
     : details.link || (details.isbn ? `https://books.google.com/books?vid=ISBN${encodeURIComponent(details.isbn)}` : 'https://books.google.com/'))
+  const providerLink = details.source_links?.find((item) => item.source === source)?.url || details.link
+  const sourceUrl = source === 'google' ? googleBooksUrl : providerLink
+  const hasSourceReader = ['google', 'openlib', 'archive'].includes(source) && Boolean(sourceUrl)
   const author = details.author || details.authors || 'Unknown author'
   const status = libraryEntry?.status || details.library_entry?.status
   const pagesRead = libraryEntry?.pages_read ?? details.pages_read
@@ -325,7 +347,7 @@ function BookDetailsModal({ selection, onClose, onAddBook, onAdded, onProgress, 
       <div className="dialog-layout">
         <div className="dialog-cover-column"><Cover src={details.cover} title={details.title} className="dialog-cover"/>
           {status && <span className={`status-pill dialog-status ${status}`}>{status}</span>}
-          <a className="source-link" href={googleBooksUrl} target="_blank" rel="noreferrer">Google Books <Icon name="arrow" size={15}/></a>
+          {hasSourceReader && <a className="source-link" href={sourceUrl} target="_blank" rel="noreferrer">{sourceName} <Icon name="arrow" size={15}/></a>}
         </div>
         <div className="dialog-copy">
           <p className="eyebrow">{details.genre_display || details.categories || 'A book worth discovering'}</p>
@@ -339,10 +361,10 @@ function BookDetailsModal({ selection, onClose, onAddBook, onAdded, onProgress, 
           {loading && <div className="dialog-loading"><span className="spinner"/>Loading book details…</div>}
           {error && <p className="inline-error dialog-error">{error}</p>}
           <div className="dialog-tabs" role="tablist" aria-label="Book information">
-            {identifier && <button role="tab" aria-selected={activeTab === 'preview'} className={activeTab === 'preview' ? 'active' : ''} onClick={() => setActiveTab('preview')}>Read preview</button>}
+            {hasSourceReader && <button role="tab" aria-selected={activeTab === 'preview'} className={activeTab === 'preview' ? 'active' : ''} onClick={() => setActiveTab('preview')}>{source === 'google' ? 'Read preview' : 'Open at source'}</button>}
             <button role="tab" aria-selected={activeTab === 'details'} className={activeTab === 'details' ? 'active' : ''} onClick={() => setActiveTab('details')}>Details</button>
           </div>
-          {activeTab === 'preview' && identifier && <GoogleBookReaderLink googleBooksUrl={googleBooksUrl}/>}
+          {activeTab === 'preview' && hasSourceReader && <ProviderBookLink provider={source} url={sourceUrl}/>}
           {activeTab === 'details' && <div className="dialog-description"><h3>About this book</h3><p>{description || 'There isn’t a description for this title yet. Open Google Books for more information.'}</p></div>}
           {status && <div className="dialog-reading-state"><span className="state-icon"><Icon name={status === 'completed' ? 'check' : 'clock'} size={17}/></span><span><strong>{status === 'completed' ? 'Finished' : status === 'wishlist' ? 'On your want-to-read shelf' : 'Currently reading'}</strong>{pagesRead != null && details.page_count > 0 && <small>{pagesRead} of {details.page_count} pages read</small>}</span></div>}
           {libraryEntry && onProgress && <form className="dialog-progress-update" onSubmit={updateReadingProgress}><label htmlFor="dialog-pages-read">Update pages read</label><div><input id="dialog-pages-read" type="number" min="0" max={details.page_count || undefined} value={pagesInput} onChange={(event) => setPagesInput(event.target.value)} /><button className="button button-outline" disabled={savingProgress}>{savingProgress ? 'Saving…' : 'Save progress'}</button></div></form>}

@@ -63,6 +63,10 @@ AUTHENTICATION_BACKENDS = [
 
 AUTH_USER_MODEL = 'users.Account'
 GOOGLE_OAUTH_CLIENT_ID = os.environ.get('GOOGLE_OAUTH_CLIENT_ID', '')
+BOOKS_API_CONTACT_EMAIL = os.environ.get(
+    'BOOKS_API_CONTACT_EMAIL', os.environ.get('EMAIL_ADDRESS', '')
+)
+BOOK_SEARCH_CACHE_TTL = int(os.environ.get('BOOK_SEARCH_CACHE_TTL', '3600'))
 
 
 # Application definition

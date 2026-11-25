@@ -4,7 +4,7 @@ from rest_framework import serializers
 
 from users.models import UserBook
 
-from .models import Book, BookLink
+from .models import Book, BookLink, BookSourceLink
 
 
 class BookLinkSerializer(serializers.ModelSerializer):
@@ -13,22 +13,34 @@ class BookLinkSerializer(serializers.ModelSerializer):
         fields = ['platforms', 'url']
 
 
+class BookSourceLinkSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = BookSourceLink
+        fields = ['source', 'external_id', 'url']
+
+
 class BookSerializer(serializers.ModelSerializer):
     """The shared catalogue entry, as returned by every read endpoint."""
 
     genre_display = serializers.CharField(source='get_genre_display', read_only=True)
     link = serializers.SerializerMethodField()
+    source_links = BookSourceLinkSerializer(many=True, read_only=True)
 
     class Meta:
         model = Book
         fields = [
             'id', 'google_id', 'title', 'author', 'isbn', 'cover',
             'genre', 'genre_display', 'description', 'source', 'created_at',
-            'viewability', 'page_count', 'published_year', 'link',
+            'viewability', 'page_count', 'published_year', 'link', 'source_links',
         ]
         read_only_fields = ['id', 'created_at']
 
     def get_link(self, obj):
+        source_links = list(obj.source_links.all())
+        link = next((item for item in source_links if item.source == obj.source), None)
+        link = link or next(iter(source_links), None)
+        if link and link.url:
+            return link.url
         booklink = getattr(obj, 'booklink', None)
         return booklink.url if booklink else None
 
@@ -196,6 +208,11 @@ class ExternalBookSerializer(serializers.Serializer):
     """
 
     google_id = serializers.CharField(allow_blank=True, allow_null=True, default='')
+    external_id = serializers.CharField(allow_blank=True, max_length=255, required=False, default='')
+    source = serializers.ChoiceField(
+        choices=[('google', 'Google Books'), ('openlib', 'Open Library'), ('archive', 'Internet Archive')],
+        default='google',
+    )
     title = serializers.CharField()
     subtitle = serializers.CharField(allow_blank=True, allow_null=True, default='')
     authors = serializers.CharField(allow_blank=True, allow_null=True, default='')
@@ -208,3 +225,10 @@ class ExternalBookSerializer(serializers.Serializer):
     viewability = serializers.CharField(allow_blank=True, allow_null=True, default=None)
     page_count = serializers.IntegerField(min_value=0, default=0)
     published_year = serializers.IntegerField(default=0)
+
+    def validate(self, attrs):
+        if not attrs.get('external_id') and attrs.get('google_id'):
+            attrs['external_id'] = attrs['google_id']
+        if attrs.get('source') == 'google' and not attrs.get('google_id'):
+            attrs['google_id'] = attrs.get('external_id', '')
+        return attrs
